@@ -1,8 +1,9 @@
 package main
 
 import (
-	_ "github.com/joho/godotenv/autoload"
+	"github.com/joho/godotenv"
 	"github.com/tokenfoundry/tcrpartybot/events"
+	"github.com/tokenfoundry/tcrpartybot/models"
 	"log"
 	"os"
 	"time"
@@ -68,6 +69,11 @@ func logErrors(errorChan <-chan error) {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Could not open .env file")
+	}
+
 	twitterCredentials := &TwitterCredentials{
 		ConsumerKey:    os.Getenv("TWITTER_CONSUMER_KEY"),
 		ConsumerSecret: os.Getenv("TWITTER_CONSUMER_SECRET"),
@@ -75,6 +81,8 @@ func main() {
 
 	eventChan := make(chan *events.Event)
 	errorChan := make(chan error)
+
+	models.GetDBSession()
 
 	go listenToTwitter(twitterCredentials, eventChan, errorChan)
 	go events.ProcessEvents(eventChan, errorChan)

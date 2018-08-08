@@ -4,10 +4,12 @@ import (
 	"encoding/hex"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tokenfoundry/tcrpartybot/models"
+	"log"
 	"strings"
 )
 
 func processMention(event *Event, errChan chan<- error) {
+	log.Println("Received mention:", event.Message)
 	// Filter based on let's party
 	lower := strings.ToLower(event.Message)
 	if !strings.Contains(lower, "let's party") {

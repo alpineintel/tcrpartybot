@@ -14,6 +14,7 @@ func GetDBSession() *sqlx.DB {
 		return session
 	}
 
+	log.Println(os.Getenv("DATABASE_URI"))
 	session, err := sqlx.Connect("sqlite3", os.Getenv("DATABASE_URI"))
 
 	if err != nil {

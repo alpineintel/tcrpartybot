@@ -1,7 +1,9 @@
 package main
 
 import (
+	_ "github.com/joho/godotenv/autoload"
 	"log"
+	"os"
 	"time"
 )
 
@@ -38,25 +40,40 @@ type Event struct {
 	Message      string    // whole message
 }
 
-type FeedSource interface {
-	GetEventFeed(since time.Time) chan Event
-	GetError() error
+type TwitterCredentials struct {
+	ConsumerKey    string
+	ConsumerSecret string
 }
 
-func listenToTwitter(apiKey string, eventChan chan<- Event, errorChan chan<- error) {
+func listenToTwitter(twitterCredentials *TwitterCredentials, eventChan chan<- *Event, errorChan chan<- error) {
+	// listen for DMs
+	// listen for @replies
+	// listen for votes
+	for {
+		time.Sleep(1 * time.Second)
+		eventChan <- &Event{
+			EventType:    EventTypeMention,
+			Time:         time.Now(),
+			SourceHandle: "stevenleeg",
+			Message:      "Let's party, @TCRPartyVIP",
+		}
+	}
 }
 
-func processEvents(eventChan <-chan Event, errorChan chan<- error) {
+func processEvents(eventChan <-chan *Event, errorChan chan<- error) {
+	log.Println("processing events")
 	for {
 		event := <-eventChan
 		switch event.EventType {
-		case EventTypeDM:
+		case EventTypeMention:
+			log.Println("Got a mention!")
 			break
 		}
 	}
 }
 
 func serveAPI() {
+	log.Println("serving api")
 }
 
 func logErrors(errorChan <-chan error) {
@@ -66,9 +83,17 @@ func logErrors(errorChan <-chan error) {
 }
 
 func main() {
-	eventChan := make(chan Event)
+	twitterCredentials := &TwitterCredentials{
+		ConsumerKey:    os.Getenv("TWITTER_CONSUMER_KEY"),
+		ConsumerSecret: os.Getenv("TWITTER_CONSUMER_SECRET"),
+	}
+
+	eventChan := make(chan *Event)
 	errorChan := make(chan error)
-	go listenToTwitter("API_KEY", eventChan, errorChan)
+	go listenToTwitter(twitterCredentials, eventChan, errorChan)
 	go processEvents(eventChan, errorChan)
-	go serveAPI()
+	//go serveAPI()
+
+	for range eventChan {
+	}
 }

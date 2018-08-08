@@ -10,4 +10,5 @@ _More docs to come..._
 ```
 TWITTER_CONSUMER_KEY=
 TWITTER_CONSUMER_SECRET=
+DATABASE_URI=./data.db
 ```

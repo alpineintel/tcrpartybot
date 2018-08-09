@@ -1,13 +1,13 @@
 package models
 
 type Account struct {
-	ID            int64
+	ID            int64  `db:"id"`
 	TwitterHandle string `db:"twitter_handle"`
 	ETHAddress    string `db:"eth_address"`
 	ETHPrivateKey string `db:"eth_private_key"`
 }
 
-func CreateAccount(account *Account, errChan chan<- error) {
+func CreateAccount(account *Account) error {
 	db := GetDBSession()
 
 	result := db.MustExec(`
@@ -20,9 +20,22 @@ func CreateAccount(account *Account, errChan chan<- error) {
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		errChan <- err
-		return
+		return err
 	}
 
 	account.ID = id
+	return nil
+}
+
+func FindAccountByHandle(handle string) *Account {
+	db := GetDBSession()
+
+	account := Account{}
+	err := db.Get(&account, "SELECT * FROM accounts WHERE twitter_handle=$1", handle)
+
+	if err != nil {
+		return nil
+	}
+
+	return &account
 }

@@ -23,14 +23,22 @@ func processMention(event *Event, errChan chan<- error) {
 		return
 	}
 
-	address := crypto.PubkeyToAddress(key.PublicKey).Hex()
-	privateKey := hex.EncodeToString(key.D.Bytes())
+	account := models.FindAccountByHandle(event.SourceHandle)
+	if account == nil {
+		log.Printf("Creating account for %s", event.SourceHandle)
+		address := crypto.PubkeyToAddress(key.PublicKey).Hex()
+		privateKey := hex.EncodeToString(key.D.Bytes())
 
-	// Store the association between their handle and their wallet in our db
-	newAccount := &models.Account{
-		TwitterHandle: event.SourceHandle,
-		ETHAddress:    address,
-		ETHPrivateKey: privateKey,
+		// Store the association between their handle and their wallet in our db
+		account = &models.Account{
+			TwitterHandle: event.SourceHandle,
+			ETHAddress:    address,
+			ETHPrivateKey: privateKey,
+		}
+		err = models.CreateAccount(account)
+
+		if err != nil {
+			errChan <- err
+		}
 	}
-	models.CreateAccount(newAccount, errChan)
 }

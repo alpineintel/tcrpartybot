@@ -63,8 +63,8 @@ func listenToTwitter(twitterCredentials *TwitterCredentials, eventChan chan<- *e
 }
 
 func logErrors(errorChan <-chan error) {
-	for {
-		log.Println(<-errorChan)
+	for err := range errorChan {
+		log.Println(err)
 	}
 }
 
@@ -86,6 +86,7 @@ func main() {
 
 	go listenToTwitter(twitterCredentials, eventChan, errorChan)
 	go events.ProcessEvents(eventChan, errorChan)
+	go logErrors(errorChan)
 
 	for range eventChan {
 	}

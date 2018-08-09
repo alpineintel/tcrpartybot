@@ -1,10 +1,15 @@
 package models
 
+import (
+	"time"
+)
+
 type Account struct {
-	ID            int64  `db:"id"`
-	TwitterHandle string `db:"twitter_handle"`
-	ETHAddress    string `db:"eth_address"`
-	ETHPrivateKey string `db:"eth_private_key"`
+	ID            int64     `db:"id"`
+	TwitterHandle string    `db:"twitter_handle"`
+	ETHAddress    string    `db:"eth_address"`
+	ETHPrivateKey string    `db:"eth_private_key"`
+	CreatedAt     time.Time `db:"created_at"`
 }
 
 func CreateAccount(account *Account) error {

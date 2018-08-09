@@ -5,9 +5,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"os"
+	"time"
 )
 
 var session *sqlx.DB = nil
+
+type NullTime struct {
+	Time  time.Time
+	Valid bool
+}
 
 func GetDBSession() *sqlx.DB {
 	if session != nil {

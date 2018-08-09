@@ -1,15 +1,17 @@
 package models
 
 import (
+	"log"
 	"time"
 )
 
 type Account struct {
-	ID            int64     `db:"id"`
-	TwitterHandle string    `db:"twitter_handle"`
-	ETHAddress    string    `db:"eth_address"`
-	ETHPrivateKey string    `db:"eth_private_key"`
-	CreatedAt     time.Time `db:"created_at"`
+	ID                            int64      `db:"id"`
+	TwitterHandle                 string     `db:"twitter_handle"`
+	ETHAddress                    string     `db:"eth_address"`
+	ETHPrivateKey                 string     `db:"eth_private_key"`
+	PassedRegistrationChallengeAt *time.Time `db:"passed_registration_challenge_at"`
+	CreatedAt                     *time.Time `db:"created_at"`
 }
 
 func CreateAccount(account *Account) error {
@@ -39,6 +41,7 @@ func FindAccountByHandle(handle string) *Account {
 	err := db.Get(&account, "SELECT * FROM accounts WHERE twitter_handle=$1", handle)
 
 	if err != nil {
+		log.Println("Error in FindAccountByHandle", err)
 		return nil
 	}
 

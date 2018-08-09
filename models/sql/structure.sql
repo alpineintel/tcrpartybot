@@ -7,3 +7,14 @@ CREATE TABLE IF NOT EXISTS accounts (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS unique_handle ON accounts (twitter_handle);
+
+CREATE TABLE IF NOT EXISTS challenge_questions (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT   NOT NULL
+);
+
+INSERT INTO challenge_questions (question, answer) VALUES(
+    "What is 2+2?",
+    "4"
+);

@@ -27,6 +27,10 @@ func ProcessEvents(eventChan <-chan *Event, errorChan chan<- error) {
 		case EventTypeMention:
 			processMention(event, errorChan)
 			break
+
+		case EventTypeDM:
+			processDM(event, errorChan)
+			break
 		}
 	}
 }

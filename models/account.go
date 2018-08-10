@@ -47,3 +47,24 @@ func FindAccountByHandle(handle string) *Account {
 
 	return &account
 }
+
+func AccountIsRegistered(accountId int64) (bool, error) {
+	db := GetDBSession()
+
+	// A user has completed the challenge phase if there are X registration
+	// challenges with non-nil completed_at columns
+	var count int
+	err := db.Get(&count, `
+		SELECT COUNT(*)
+		FROM registration_challenges
+		WHERE
+			account_id = $1 AND
+			completed_at IS NOT NULL
+	`, accountId)
+
+	if err != nil {
+		return false, err
+	}
+
+	return count == REGISTRATION_CHALLENGE_COUNT, nil
+}

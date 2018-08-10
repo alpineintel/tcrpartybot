@@ -4,14 +4,18 @@ import (
 	"time"
 )
 
+const (
+	REGISTRATION_CHALLENGE_COUNT = 3
+)
+
 type RegistrationChallenge struct {
 	ID                     int64 `db:"id"`
 	AccountID              int64 `db:"account_id"`
 	Account                *Account
-	RegistrationQuestionID int64 `db:"registration_question_id"`
-	RegistrationQuestion   *RegistrationQuestion
-	SentAt                 *time.Time `db:"sent_at"`
-	CompletedAt            *time.Time `db:"completed_at"`
+	RegistrationQuestionID int64                 `db:"registration_question_id"`
+	RegistrationQuestion   *RegistrationQuestion `db:"registration_question"`
+	SentAt                 *time.Time            `db:"sent_at"`
+	CompletedAt            *time.Time            `db:"completed_at"`
 }
 
 func CreateRegistrationChallenge(account *Account, question *RegistrationQuestion) (*RegistrationChallenge, error) {
@@ -41,7 +45,7 @@ func CreateRegistrationChallenge(account *Account, question *RegistrationQuestio
 	return challenge, nil
 }
 
-func MarkRegistrationChallengeSent(challenge *RegistrationChallenge) error {
+func MarkRegistrationChallengeSent(challengeId int64) error {
 	db := GetDBSession()
 
 	now := time.Now()
@@ -49,7 +53,49 @@ func MarkRegistrationChallengeSent(challenge *RegistrationChallenge) error {
 		UPDATE registration_challenges
 		SET sent_at=$1
 		WHERE id=$2
-	`, &now, challenge.ID)
+	`, &now, challengeId)
 
 	return err
+}
+
+func FindUnsentChallenge(accountId int64) (*RegistrationChallenge, error) {
+	db := GetDBSession()
+
+	challenge := &RegistrationChallenge{}
+	err := db.Get(&challenge, `
+		SELECT
+			registration_challenges.*,
+			registration_questions.*
+		FROM registration_challenges
+		JOIN questions ON
+			registration_challenges.question_id = registration_questions.id
+		WHERE
+			account_id = $1 AND
+			sent_at IS NULL
+		ORDER BY RANDOM()
+		LIMIT 1
+	`, accountId)
+
+	return challenge, err
+}
+
+func FindIncompleteChallenge(accountId int64) (*RegistrationChallenge, error) {
+	db := GetDBSession()
+
+	challenge := &RegistrationChallenge{}
+	err := db.Get(&challenge, `
+		SELECT
+			registration_challenges.*,
+			registration_questions.*
+		FROM registration_challenges
+		JOIN questions ON
+			registration_challenges.question_id = registration_questions.id
+		WHERE
+			account_id = $1 AND
+			sent_at IS NOT NULL AND
+			completed_at IS NULL
+		LIMIT 1
+	`, accountId)
+
+	return challenge, err
 }

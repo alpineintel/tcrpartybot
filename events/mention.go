@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-const (
-	CHALLENGE_QUESTION_COUNT = 3
-)
-
 func processMention(event *Event, errChan chan<- error) {
 	log.Printf("Received mention from %s: %s", event.SourceHandle, event.Message)
 	// Filter based on let's party
@@ -54,14 +50,14 @@ func processRegistration(event *Event, errChan chan<- error) {
 	}
 
 	// Generate three registration challenges for them
-	questions, err := models.FetchRandomRegistrationQuestions(CHALLENGE_QUESTION_COUNT)
+	questions, err := models.FetchRandomRegistrationQuestions(models.REGISTRATION_CHALLENGE_COUNT)
 
 	if err != nil {
 		errChan <- err
 		return
 	}
 
-	challenges := make([]*models.RegistrationChallenge, CHALLENGE_QUESTION_COUNT)
+	challenges := make([]*models.RegistrationChallenge, models.REGISTRATION_CHALLENGE_COUNT)
 	for i, question := range questions {
 		challenges[i], err = models.CreateRegistrationChallenge(account, &question)
 
@@ -80,7 +76,7 @@ func processRegistration(event *Event, errChan chan<- error) {
 	firstChallenge := challenges[0]
 	twitter.SendDirectMessage(account.TwitterHandle, firstChallenge.RegistrationQuestion.Question)
 
-	err = models.MarkRegistrationChallengeSent(firstChallenge)
+	err = models.MarkRegistrationChallengeSent(firstChallenge.ID)
 	if err != nil {
 		errChan <- err
 	}

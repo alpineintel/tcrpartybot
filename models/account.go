@@ -46,7 +46,7 @@ func FindAccountByHandle(handle string) (*Account, error) {
 	return &account, nil
 }
 
-func AccountIsRegistered(accountId int64) (bool, error) {
+func AccountHasCompletedChallenges(accountId int64) (bool, error) {
 	db := GetDBSession()
 
 	// A user has completed the challenge phase if there are X registration
@@ -65,4 +65,17 @@ func AccountIsRegistered(accountId int64) (bool, error) {
 	}
 
 	return count == REGISTRATION_CHALLENGE_COUNT, nil
+}
+
+func MarkAccountRegistered(accountId int64) error {
+	db := GetDBSession()
+
+	now := time.Now()
+	_, err := db.Exec(`
+		UPDATE accounts
+		SET passed_registration_challenge_at = $1
+		WHERE id = $2
+	`, &now, accountId)
+
+	return err
 }

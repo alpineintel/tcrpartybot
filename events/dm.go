@@ -23,15 +23,10 @@ func processDM(event *Event, errChan chan<- error) {
 	}
 
 	// Are they just doing general stuff?
-	fullyRegistered, err := models.AccountIsRegistered(account.ID)
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	if fullyRegistered {
+	if account.PassedRegistrationChallengeAt != nil {
 		// They're already registered, trying to send some kind of command to
 		// the bot
+		twitter.SendDM(account.TwitterHandle, "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token.")
 		return
 	}
 
@@ -70,13 +65,20 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 	}
 
 	// Are they completely done?
-	fullyRegistered, err := models.AccountIsRegistered(data.Account.ID)
+	completedChallenges, err := models.AccountHasCompletedChallenges(data.Account.ID)
 	if err != nil {
 		errChan <- err
 		return
 	}
 
-	if fullyRegistered {
+	// Yes! Let's let them know that they're good to go.
+	if completedChallenges {
+		err := models.MarkAccountRegistered(data.Account.ID)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
 		twitter.SendDM(data.Account.TwitterHandle, "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈.")
 		return
 	}

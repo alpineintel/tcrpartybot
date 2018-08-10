@@ -1,7 +1,6 @@
 package models
 
 import (
-	"log"
 	"time"
 )
 
@@ -34,18 +33,17 @@ func CreateAccount(account *Account) error {
 	return nil
 }
 
-func FindAccountByHandle(handle string) *Account {
+func FindAccountByHandle(handle string) (*Account, error) {
 	db := GetDBSession()
 
 	account := Account{}
 	err := db.Get(&account, "SELECT * FROM accounts WHERE twitter_handle=$1", handle)
 
 	if err != nil {
-		log.Println("Error in FindAccountByHandle", err)
-		return nil
+		return nil, err
 	}
 
-	return &account
+	return &account, nil
 }
 
 func AccountIsRegistered(accountId int64) (bool, error) {

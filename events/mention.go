@@ -21,7 +21,7 @@ func processMention(event *Event, errChan chan<- error) {
 
 func processRegistration(event *Event, errChan chan<- error) {
 	// If they already have an account we don't need to continue
-	account := models.FindAccountByHandle(event.SourceHandle)
+	account, _ := models.FindAccountByHandle(event.SourceHandle)
 	if account != nil {
 		return
 	}
@@ -57,6 +57,7 @@ func processRegistration(event *Event, errChan chan<- error) {
 		return
 	}
 
+	// Create a list of challenges for the new user to complete
 	challenges := make([]*models.RegistrationChallenge, models.REGISTRATION_CHALLENGE_COUNT)
 	for i, question := range questions {
 		challenges[i], err = models.CreateRegistrationChallenge(account, &question)
@@ -74,7 +75,7 @@ func processRegistration(event *Event, errChan chan<- error) {
 	}
 
 	firstChallenge := challenges[0]
-	twitter.SendDirectMessage(account.TwitterHandle, firstChallenge.RegistrationQuestion.Question)
+	twitter.SendDM(account.TwitterHandle, questions[0].Question)
 
 	err = models.MarkRegistrationChallengeSent(firstChallenge.ID)
 	if err != nil {

@@ -63,7 +63,8 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 			return
 		}
 
-		argv := strings.Split(text, " ")
+		trimmed := strings.TrimSpace(text)
+		argv := strings.Split(trimmed, " ")
 		command := argv[0]
 		args := argv[1:]
 		argc := len(args)

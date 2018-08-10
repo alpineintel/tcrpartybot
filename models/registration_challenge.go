@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -9,13 +10,16 @@ const (
 )
 
 type RegistrationChallenge struct {
-	ID                     int64 `db:"id"`
-	AccountID              int64 `db:"account_id"`
-	Account                *Account
-	RegistrationQuestionID int64                 `db:"registration_question_id"`
-	RegistrationQuestion   *RegistrationQuestion `db:"registration_question"`
-	SentAt                 *time.Time            `db:"sent_at"`
-	CompletedAt            *time.Time            `db:"completed_at"`
+	ID                     int64      `db:"id"`
+	AccountID              int64      `db:"account_id"`
+	RegistrationQuestionID int64      `db:"registration_question_id"`
+	SentAt                 *time.Time `db:"sent_at"`
+	CompletedAt            *time.Time `db:"completed_at"`
+}
+
+type RegistrationChallengeRegistrationQuestion struct {
+	RegistrationChallenge
+	RegistrationQuestion
 }
 
 func CreateRegistrationChallenge(account *Account, question *RegistrationQuestion) (*RegistrationChallenge, error) {
@@ -23,9 +27,7 @@ func CreateRegistrationChallenge(account *Account, question *RegistrationQuestio
 
 	challenge := &RegistrationChallenge{
 		AccountID:              account.ID,
-		Account:                account,
 		RegistrationQuestionID: question.ID,
-		RegistrationQuestion:   question,
 	}
 
 	result := db.MustExec(`
@@ -51,24 +53,38 @@ func MarkRegistrationChallengeSent(challengeId int64) error {
 	now := time.Now()
 	_, err := db.Exec(`
 		UPDATE registration_challenges
-		SET sent_at=$1
-		WHERE id=$2
+		SET sent_at = $1
+		WHERE id = $2
 	`, &now, challengeId)
 
 	return err
 }
 
-func FindUnsentChallenge(accountId int64) (*RegistrationChallenge, error) {
+func MarkChallengeCompleted(challengeId int64) error {
 	db := GetDBSession()
 
-	challenge := &RegistrationChallenge{}
-	err := db.Get(&challenge, `
+	fmt.Printf("marking completed %d", challengeId)
+	now := time.Now()
+	_, err := db.Exec(`
+		UPDATE registration_challenges
+		SET completed_at = $1
+		WHERE id = $2
+	`, &now, challengeId)
+
+	return err
+}
+
+func FindUnsentChallenge(accountId int64) (*RegistrationChallengeRegistrationQuestion, error) {
+	db := GetDBSession()
+
+	challenge := &RegistrationChallengeRegistrationQuestion{}
+	err := db.Get(challenge, `
 		SELECT
 			registration_challenges.*,
 			registration_questions.*
 		FROM registration_challenges
-		JOIN questions ON
-			registration_challenges.question_id = registration_questions.id
+		JOIN registration_questions ON
+			registration_challenges.registration_question_id = registration_questions.id
 		WHERE
 			account_id = $1 AND
 			sent_at IS NULL
@@ -79,23 +95,25 @@ func FindUnsentChallenge(accountId int64) (*RegistrationChallenge, error) {
 	return challenge, err
 }
 
-func FindIncompleteChallenge(accountId int64) (*RegistrationChallenge, error) {
+func FindIncompleteChallenge(accountId int64) (*RegistrationChallengeRegistrationQuestion, error) {
 	db := GetDBSession()
 
-	challenge := &RegistrationChallenge{}
-	err := db.Get(&challenge, `
+	challenge := &RegistrationChallengeRegistrationQuestion{}
+	err := db.Get(challenge, `
 		SELECT
 			registration_challenges.*,
 			registration_questions.*
 		FROM registration_challenges
-		JOIN questions ON
-			registration_challenges.question_id = registration_questions.id
+		JOIN registration_questions ON
+			registration_challenges.registration_question_id = registration_questions.id
 		WHERE
 			account_id = $1 AND
 			sent_at IS NOT NULL AND
 			completed_at IS NULL
 		LIMIT 1
 	`, accountId)
+
+	fmt.Println(challenge)
 
 	return challenge, err
 }

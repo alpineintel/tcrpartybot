@@ -7,6 +7,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tokenfoundry/tcrpartybot/events"
 	"github.com/tokenfoundry/tcrpartybot/models"
+	"github.com/tokenfoundry/tcrpartybot/twitter"
 	"log"
 	"os"
 	"strings"
@@ -36,11 +37,6 @@ type TCRContract interface {
 	GetExpiry(nominee string) (time.Time, error)
 }
 
-type TwitterCredentials struct {
-	ConsumerKey    string
-	ConsumerSecret string
-}
-
 func logErrors(errorChan <-chan error) {
 	for err := range errorChan {
 		log.Printf("\n%s", err)
@@ -49,6 +45,11 @@ func logErrors(errorChan <-chan error) {
 
 func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 	fmt.Print(HELP_STRING)
+
+	twitterCredentials := &twitter.TwitterCredentials{
+		ConsumerKey:    os.Getenv("TWITTER_CONSUMER_KEY"),
+		ConsumerSecret: os.Getenv("TWITTER_CONSUMER_SECRET"),
+	}
 
 	for {
 		// Give the other channels a chance to process and print a response
@@ -70,6 +71,15 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 		argc := len(args)
 
 		switch command {
+		case "auth-vip":
+			url, err := twitter.GetOAuthURL(twitterCredentials)
+			if err != nil {
+				errChan <- err
+				continue
+			}
+
+			fmt.Printf("Go to this URL to generate an access token:\n%s", url)
+			break
 		case "dm":
 			if argc < 2 {
 				errChan <- errors.New("Invalid number of arguments for command dm")

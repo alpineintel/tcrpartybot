@@ -47,4 +47,15 @@ CREATE TABLE IF NOT EXISTS registration_challenges (
     completed_at                          DATETIME,
     FOREIGN KEY(registration_question_id) REFERENCES accounts(id),
     FOREIGN KEY(account_id)               REFERENCES accounts(id)
-)
+);
+
+----
+-- OAuth Tokens
+--
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    twitter_handle     VARCHAR(15) NOT NULL,
+    oauth_token        VARCHAR(64) NOT NULL,
+    oauth_token_secret VARCHAR(64) NOT NULL,
+    created_at         DATETIME  DEFAULT CURRENT_TIMESTAMP
+);

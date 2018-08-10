@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -19,7 +18,7 @@ type RegistrationChallenge struct {
 
 type RegistrationChallengeRegistrationQuestion struct {
 	RegistrationChallenge
-	RegistrationQuestion
+	RegistrationQuestion `db:"registration_questions"`
 }
 
 func CreateRegistrationChallenge(account *Account, question *RegistrationQuestion) (*RegistrationChallenge, error) {
@@ -63,7 +62,6 @@ func MarkRegistrationChallengeSent(challengeId int64) error {
 func MarkChallengeCompleted(challengeId int64) error {
 	db := GetDBSession()
 
-	fmt.Printf("marking completed %d", challengeId)
 	now := time.Now()
 	_, err := db.Exec(`
 		UPDATE registration_challenges
@@ -81,7 +79,9 @@ func FindUnsentChallenge(accountId int64) (*RegistrationChallengeRegistrationQue
 	err := db.Get(challenge, `
 		SELECT
 			registration_challenges.*,
-			registration_questions.*
+			registration_questions.id "registration_questions.id",
+			registration_questions.question "registration_questions.question",
+			registration_questions.answer "registration_questions.answer"
 		FROM registration_challenges
 		JOIN registration_questions ON
 			registration_challenges.registration_question_id = registration_questions.id
@@ -102,7 +102,9 @@ func FindIncompleteChallenge(accountId int64) (*RegistrationChallengeRegistratio
 	err := db.Get(challenge, `
 		SELECT
 			registration_challenges.*,
-			registration_questions.*
+			registration_questions.id "registration_questions.id",
+			registration_questions.question "registration_questions.question",
+			registration_questions.answer "registration_questions.answer"
 		FROM registration_challenges
 		JOIN registration_questions ON
 			registration_challenges.registration_question_id = registration_questions.id
@@ -112,8 +114,6 @@ func FindIncompleteChallenge(accountId int64) (*RegistrationChallengeRegistratio
 			completed_at IS NULL
 		LIMIT 1
 	`, accountId)
-
-	fmt.Println(challenge)
 
 	return challenge, err
 }

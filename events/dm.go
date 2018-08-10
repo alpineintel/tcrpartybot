@@ -88,6 +88,12 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 		return
 	}
 
+	err = models.MarkRegistrationChallengeSent(activeChallenge.RegistrationChallenge.ID)
+	if err != nil {
+		errChan <- err
+		return
+	}
+
 	response := fmt.Sprintf("Nice, that's it! Here's another one for you: %s", activeChallenge.Question)
 	twitter.SendDM(data.Account.TwitterHandle, response)
 }

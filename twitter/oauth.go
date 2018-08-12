@@ -3,6 +3,7 @@ package twitter
 import (
 	"github.com/dghubble/oauth1"
 	"github.com/dghubble/oauth1/twitter"
+	"github.com/tokenfoundry/tcrpartybot/models"
 )
 
 const (
@@ -12,6 +13,12 @@ const (
 type TwitterCredentials struct {
 	ConsumerKey    string
 	ConsumerSecret string
+}
+
+type TwitterOAuthRequest struct {
+	Handle       string
+	PIN          string
+	RequestToken string
 }
 
 func getOAuthConfiguration(credentials *TwitterCredentials) *oauth1.Config {
@@ -24,7 +31,7 @@ func getOAuthConfiguration(credentials *TwitterCredentials) *oauth1.Config {
 
 }
 
-func GetOAuthURL(credentials *TwitterCredentials) (string, error) {
+func GetOAuthURL(credentials *TwitterCredentials, request *TwitterOAuthRequest) (string, error) {
 	conf := getOAuthConfiguration(credentials)
 
 	requestToken, _, err := conf.RequestToken()
@@ -37,5 +44,28 @@ func GetOAuthURL(credentials *TwitterCredentials) (string, error) {
 		return "", err
 	}
 
+	request.RequestToken = requestToken
+
 	return authorizationURL.String(), nil
+}
+
+func ReceivePIN(credentials *TwitterCredentials, request *TwitterOAuthRequest) error {
+	conf := getOAuthConfiguration(credentials)
+	accessToken, accessSecret, err := conf.AccessToken(
+		request.RequestToken,
+		"",
+		request.PIN,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	token := &models.OAuthToken{
+		TwitterHandle:    request.Handle,
+		OAuthToken:       accessToken,
+		OAuthTokenSecret: accessSecret,
+	}
+
+	return models.CreateOAuthToken(token)
 }

@@ -17,7 +17,9 @@ import (
 const (
 	HELP_STRING = `Welcome to the TCR Party REPL! Available commands:
 	dm [from handle, w/o @] [message]      - Simulates a Twitter DM
-	mention [from handle, w/o @] [message] - Simulates a Twitter mention`
+	mention [from handle, w/o @] [message] - Simulates a Twitter mention
+	auth-vip                               - Begins auth bot auth flow
+	auth-party                             - Begins retweet bot auth flow`
 )
 
 /*
@@ -72,13 +74,34 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 
 		switch command {
 		case "auth-vip":
-			url, err := twitter.GetOAuthURL(twitterCredentials)
+			request := &twitter.TwitterOAuthRequest{
+				Handle: os.Getenv("VIP_BOT_HANDLE"),
+			}
+
+			url, err := twitter.GetOAuthURL(twitterCredentials, request)
 			if err != nil {
 				errChan <- err
 				continue
 			}
 
 			fmt.Printf("Go to this URL to generate an access token:\n%s", url)
+			fmt.Print("\nEnter PIN: ")
+
+			_, err = fmt.Scanf("%s", &request.PIN)
+			if err != nil {
+				log.Println("Error receiving PIN")
+				errChan <- err
+				continue
+			}
+
+			err = twitter.ReceivePIN(twitterCredentials, request)
+			if err != nil {
+				log.Println("Error fetching token")
+				errChan <- err
+				continue
+			}
+
+			log.Println("Access token saved!")
 			break
 		case "dm":
 			if argc < 2 {

@@ -3,6 +3,8 @@ package events
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
+	goTwitter "github.com/dghubble/go-twitter/twitter"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/tokenfoundry/tcrpartybot/models"
 	"github.com/tokenfoundry/tcrpartybot/twitter"
@@ -10,8 +12,44 @@ import (
 	"strings"
 )
 
+func ListenForTwitterMentions(handle string, eventChan chan<- *Event, errChan chan<- error) {
+	client, err := twitter.GetClient(twitter.PartyBotHandle)
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	// Open up a twitter stream filtering for @TCRBotVIP mentions
+	mentionString := fmt.Sprintf("@%s", handle)
+	params := &goTwitter.StreamFilterParams{
+		Track:         []string{mentionString},
+		StallWarnings: goTwitter.Bool(false),
+	}
+
+	stream, err := client.Streams.Filter(params)
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	// Convert incoming tweets to our native event struct and hand it off to
+	// the events channel
+	demux := goTwitter.NewSwitchDemux()
+	demux.Tweet = func(tweet *goTwitter.Tweet) {
+		eventChan <- &Event{
+			EventType:    EventTypeMention,
+			SourceHandle: tweet.User.Name,
+			Message:      tweet.Text,
+		}
+	}
+
+	for message := range stream.Messages {
+		demux.Handle(message)
+	}
+}
+
 func processMention(event *Event, errChan chan<- error) {
-	log.Printf("Received mention from %s: %s", event.SourceHandle, event.Message)
+	log.Printf("\nReceived mention from %s: %s", event.SourceHandle, event.Message)
 	// Filter based on let's party
 	lower := strings.ToLower(event.Message)
 	if strings.Contains(lower, "let's party") {

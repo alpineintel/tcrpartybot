@@ -45,13 +45,39 @@ func logErrors(errorChan <-chan error) {
 	}
 }
 
+func authenticateHandle(handle string, errChan chan<- error) {
+	request := &twitter.TwitterOAuthRequest{
+		Handle: handle,
+	}
+
+	url, err := twitter.GetOAuthURL(request)
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	fmt.Printf("Go to this URL to generate an access token:\n%s", url)
+	fmt.Print("\nEnter PIN: ")
+
+	_, err = fmt.Scanf("%s", &request.PIN)
+	if err != nil {
+		log.Println("Error receiving PIN")
+		errChan <- err
+		return
+	}
+
+	err = twitter.ReceivePIN(request)
+	if err != nil {
+		log.Println("Error fetching token")
+		errChan <- err
+		return
+	}
+
+	log.Println("Access token saved!")
+}
+
 func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 	fmt.Print(HELP_STRING)
-
-	twitterCredentials := &twitter.TwitterCredentials{
-		ConsumerKey:    os.Getenv("TWITTER_CONSUMER_KEY"),
-		ConsumerSecret: os.Getenv("TWITTER_CONSUMER_SECRET"),
-	}
 
 	for {
 		// Give the other channels a chance to process and print a response
@@ -74,34 +100,10 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 
 		switch command {
 		case "auth-vip":
-			request := &twitter.TwitterOAuthRequest{
-				Handle: os.Getenv("VIP_BOT_HANDLE"),
-			}
-
-			url, err := twitter.GetOAuthURL(twitterCredentials, request)
-			if err != nil {
-				errChan <- err
-				continue
-			}
-
-			fmt.Printf("Go to this URL to generate an access token:\n%s", url)
-			fmt.Print("\nEnter PIN: ")
-
-			_, err = fmt.Scanf("%s", &request.PIN)
-			if err != nil {
-				log.Println("Error receiving PIN")
-				errChan <- err
-				continue
-			}
-
-			err = twitter.ReceivePIN(twitterCredentials, request)
-			if err != nil {
-				log.Println("Error fetching token")
-				errChan <- err
-				continue
-			}
-
-			log.Println("Access token saved!")
+			authenticateHandle(os.Getenv("VIP_BOT_HANDLE"), errChan)
+			break
+		case "auth-party":
+			authenticateHandle(os.Getenv("PARTY_BOT_HANDLE"), errChan)
 			break
 		case "dm":
 			if argc < 2 {
@@ -145,6 +147,7 @@ func main() {
 
 	models.GetDBSession()
 
+	go events.ListenForTwitterMentions(os.Getenv("VIP_BOT_HANDLE"), eventChan, errorChan)
 	go events.ProcessEvents(eventChan, errorChan)
 	go logErrors(errorChan)
 

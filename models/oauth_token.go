@@ -1,6 +1,7 @@
 package models
 
 import (
+	"strings"
 	"time"
 )
 
@@ -30,4 +31,18 @@ func CreateOAuthToken(token *OAuthToken) error {
 
 	token.ID = id
 	return nil
+}
+
+func FindOAuthTokenByHandle(handle string) (*OAuthToken, error) {
+	db := GetDBSession()
+
+	token := OAuthToken{}
+	handle = strings.ToLower(handle)
+	err := db.Get(&token, "SELECT * FROM oauth_tokens WHERE LOWER(twitter_handle)=$1", handle)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &token, nil
 }

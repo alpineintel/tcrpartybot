@@ -1,19 +1,20 @@
 package twitter
 
 import (
+	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
-	"github.com/dghubble/oauth1/twitter"
+	twitterOAuth "github.com/dghubble/oauth1/twitter"
 	"github.com/tokenfoundry/tcrpartybot/models"
+	"log"
+	"os"
 )
 
 const (
-	OUT_OF_BAND = "oob"
-)
+	OutOfBand = "oob"
 
-type TwitterCredentials struct {
-	ConsumerKey    string
-	ConsumerSecret string
-}
+	VIPBotHandle   = "vip"
+	PartyBotHandle = "party"
+)
 
 type TwitterOAuthRequest struct {
 	Handle       string
@@ -21,18 +22,34 @@ type TwitterOAuthRequest struct {
 	RequestToken string
 }
 
-func getOAuthConfiguration(credentials *TwitterCredentials) *oauth1.Config {
-	return &oauth1.Config{
-		ConsumerKey:    credentials.ConsumerKey,
-		ConsumerSecret: credentials.ConsumerSecret,
-		Endpoint:       twitter.AuthorizeEndpoint,
-		CallbackURL:    OUT_OF_BAND,
+var session *twitter.Client
+
+func GetClient(handle string) (*twitter.Client, error) {
+	if session != nil {
+		return session, nil
 	}
 
+	if handle == VIPBotHandle {
+		handle = os.Getenv("VIP_BOT_HANDLE")
+	} else {
+		handle = os.Getenv("PARTY_BOT_HANDLE")
+	}
+
+	oauthToken, err := models.FindOAuthTokenByHandle(handle)
+	if err != nil {
+		log.Printf("Could not find OAuth token for %s", handle)
+		return nil, err
+	}
+
+	conf := getOAuthConfiguration()
+	token := oauth1.NewToken(oauthToken.OAuthToken, oauthToken.OAuthTokenSecret)
+	httpClient := conf.Client(oauth1.NoContext, token)
+
+	return twitter.NewClient(httpClient), nil
 }
 
-func GetOAuthURL(credentials *TwitterCredentials, request *TwitterOAuthRequest) (string, error) {
-	conf := getOAuthConfiguration(credentials)
+func GetOAuthURL(request *TwitterOAuthRequest) (string, error) {
+	conf := getOAuthConfiguration()
 
 	requestToken, _, err := conf.RequestToken()
 	if err != nil {
@@ -49,8 +66,8 @@ func GetOAuthURL(credentials *TwitterCredentials, request *TwitterOAuthRequest) 
 	return authorizationURL.String(), nil
 }
 
-func ReceivePIN(credentials *TwitterCredentials, request *TwitterOAuthRequest) error {
-	conf := getOAuthConfiguration(credentials)
+func ReceivePIN(request *TwitterOAuthRequest) error {
+	conf := getOAuthConfiguration()
 	accessToken, accessSecret, err := conf.AccessToken(
 		request.RequestToken,
 		"",
@@ -68,4 +85,13 @@ func ReceivePIN(credentials *TwitterCredentials, request *TwitterOAuthRequest) e
 	}
 
 	return models.CreateOAuthToken(token)
+}
+
+func getOAuthConfiguration() *oauth1.Config {
+	return &oauth1.Config{
+		ConsumerKey:    os.Getenv("TWITTER_CONSUMER_KEY"),
+		ConsumerSecret: os.Getenv("TWITTER_CONSUMER_SECRET"),
+		Endpoint:       twitterOAuth.AuthorizeEndpoint,
+		CallbackURL:    OutOfBand,
+	}
 }

@@ -19,7 +19,8 @@ const (
 	dm [from handle, w/o @] [message]      - Simulates a Twitter DM
 	mention [from handle, w/o @] [message] - Simulates a Twitter mention
 	auth-vip                               - Begins auth bot auth flow
-	auth-party                             - Begins retweet bot auth flow`
+	auth-party                             - Begins retweet bot auth flow
+	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot`
 )
 
 /*
@@ -104,6 +105,18 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 			break
 		case "auth-party":
 			authenticateHandle(os.Getenv("PARTY_BOT_HANDLE"), errChan)
+			break
+		case "send-dm":
+			if argc < 2 {
+				errChan <- errors.New("Invalid number of arguments for command send-dm")
+				continue
+			}
+
+			err := twitter.SendDM(args[0], strings.Join(args[1:], " "))
+			if err != nil {
+				errChan <- err
+				continue
+			}
 			break
 		case "dm":
 			if argc < 2 {

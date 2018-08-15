@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+	goTwitter "github.com/dghubble/go-twitter/twitter"
 	"github.com/tokenfoundry/tcrpartybot/models"
 	"github.com/tokenfoundry/tcrpartybot/twitter"
 	"log"
@@ -11,6 +12,31 @@ type RegistrationEventData struct {
 	Event     *Event
 	Challenge *models.RegistrationChallengeRegistrationQuestion
 	Account   *models.Account
+}
+
+func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- error) {
+	client, err := twitter.GetClient(handle)
+	if err != nil {
+		log.Println("Could establish client listening to DMs")
+		errChan <- err
+		return
+	}
+
+	params := &goTwitter.DirectMessageEventsListParams{}
+	events, _, err := client.DirectMessages.EventsList(params)
+	if err != nil {
+		log.Println("Could not fetch event feed")
+		errChan <- err
+		return
+	}
+
+	for _, event := range events.Events {
+		if event.Type == "message_create" {
+			log.Printf("Detect DM: %s", event.Message.SenderID)
+		} else {
+			log.Printf("Received event: %s", event.Type)
+		}
+	}
 }
 
 func processDM(event *Event, errChan chan<- error) {

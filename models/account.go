@@ -6,6 +6,7 @@ import (
 
 type Account struct {
 	ID                            int64      `db:"id"`
+	TwitterID                     int64      `db:"twitter_id"`
 	TwitterHandle                 string     `db:"twitter_handle"`
 	ETHAddress                    string     `db:"eth_address"`
 	ETHPrivateKey                 string     `db:"eth_private_key"`

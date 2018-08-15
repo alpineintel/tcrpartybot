@@ -4,6 +4,7 @@
 CREATE TABLE IF NOT EXISTS accounts (
     id                               INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     twitter_handle                   VARCHAR(15) NOT NULL,
+    twitter_id                       INTEGER NOT NULL,
     eth_address                      VARCHAR(42) NOT NULL,
     eth_private_key                  VARCHAR(64) NOT NULL,
     passed_registration_challenge_at DATETIME,
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS registration_challenges (
 --
 CREATE TABLE IF NOT EXISTS oauth_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    twitter_id         INTEGER,
     twitter_handle     VARCHAR(15) NOT NULL,
     oauth_token        VARCHAR(64) NOT NULL,
     oauth_token_secret VARCHAR(64) NOT NULL,

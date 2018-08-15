@@ -1,6 +1,7 @@
 package twitter
 
 import (
+	"database/sql"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	twitterOAuth "github.com/dghubble/oauth1/twitter"
@@ -31,7 +32,7 @@ func GetClient(handle string) (*twitter.Client, error) {
 
 	if handle == VIPBotHandle {
 		handle = os.Getenv("VIP_BOT_HANDLE")
-	} else {
+	} else if handle == PartyBotHandle {
 		handle = os.Getenv("PARTY_BOT_HANDLE")
 	}
 
@@ -78,13 +79,37 @@ func ReceivePIN(request *TwitterOAuthRequest) error {
 		return err
 	}
 
+	// Save the OAuth credentials in the database
 	token := &models.OAuthToken{
 		TwitterHandle:    request.Handle,
 		OAuthToken:       accessToken,
 		OAuthTokenSecret: accessSecret,
 	}
 
-	return models.CreateOAuthToken(token)
+	err = models.CreateOAuthToken(token)
+	if err != nil {
+		return err
+	}
+
+	// Fetch the user ID
+	client, err := GetClient(request.Handle)
+	if err != nil {
+		log.Println("Could not establish client")
+		return err
+	}
+
+	verifyParams := &twitter.AccountVerifyParams{
+		SkipStatus:   twitter.Bool(true),
+		IncludeEmail: twitter.Bool(false),
+	}
+	user, _, err := client.Accounts.VerifyCredentials(verifyParams)
+	if err != nil {
+		log.Println("Could fetch user data")
+		return err
+	}
+
+	token.TwitterID = sql.NullInt64{Int64: user.ID, Valid: true}
+	return token.Save()
 }
 
 func getOAuthConfiguration() *oauth1.Config {

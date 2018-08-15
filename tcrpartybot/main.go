@@ -160,7 +160,20 @@ func main() {
 
 	models.GetDBSession()
 
-	go events.ListenForTwitterMentions(os.Getenv("VIP_BOT_HANDLE"), eventChan, errorChan)
+	_, err = models.FindOAuthTokenByHandle(os.Getenv("PARTY_BOT_HANDLE"))
+	if err != nil {
+		log.Printf("Credentials for party bot not found. Please authenticate!")
+	} else {
+		go events.ListenForTwitterMentions(os.Getenv("PARTY_BOT_HANDLE"), eventChan, errorChan)
+	}
+
+	_, err = models.FindOAuthTokenByHandle(os.Getenv("VIP_BOT_HANDLE"))
+	if err != nil {
+		log.Printf("Credentials for vip bot not found. Please authenticate!")
+	} else {
+		go events.ListenForTwitterDM(os.Getenv("VIP_BOT_HANDLE"), eventChan, errorChan)
+	}
+
 	go events.ProcessEvents(eventChan, errorChan)
 	go logErrors(errorChan)
 

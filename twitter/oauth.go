@@ -1,7 +1,6 @@
 package twitter
 
 import (
-	"database/sql"
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	twitterOAuth "github.com/dghubble/oauth1/twitter"
@@ -23,13 +22,7 @@ type TwitterOAuthRequest struct {
 	RequestToken string
 }
 
-var session *twitter.Client
-
-func GetClient(handle string) (*twitter.Client, error) {
-	if session != nil {
-		return session, nil
-	}
-
+func GetClientFromHandle(handle string) (*twitter.Client, *models.OAuthToken, error) {
 	if handle == VIPBotHandle {
 		handle = os.Getenv("VIP_BOT_HANDLE")
 	} else if handle == PartyBotHandle {
@@ -39,17 +32,25 @@ func GetClient(handle string) (*twitter.Client, error) {
 	oauthToken, err := models.FindOAuthTokenByHandle(handle)
 	if err != nil {
 		log.Printf("Could not find OAuth token for %s", handle)
-		return nil, err
+		return nil, nil, err
 	}
 
 	conf := getOAuthConfiguration()
 	token := oauth1.NewToken(oauthToken.OAuthToken, oauthToken.OAuthTokenSecret)
 	httpClient := conf.Client(oauth1.NoContext, token)
 
-	return twitter.NewClient(httpClient), nil
+	return twitter.NewClient(httpClient), oauthToken, nil
 }
 
-func GetOAuthURL(request *TwitterOAuthRequest) (string, error) {
+func GetClientFromToken(oauthToken *models.OAuthToken) *twitter.Client {
+	conf := getOAuthConfiguration()
+	token := oauth1.NewToken(oauthToken.OAuthToken, oauthToken.OAuthTokenSecret)
+	httpClient := conf.Client(oauth1.NoContext, token)
+
+	return twitter.NewClient(httpClient)
+}
+
+func (request *TwitterOAuthRequest) GetOAuthURL() (string, error) {
 	conf := getOAuthConfiguration()
 
 	requestToken, _, err := conf.RequestToken()
@@ -67,7 +68,7 @@ func GetOAuthURL(request *TwitterOAuthRequest) (string, error) {
 	return authorizationURL.String(), nil
 }
 
-func ReceivePIN(request *TwitterOAuthRequest) error {
+func (request *TwitterOAuthRequest) ReceivePIN() error {
 	conf := getOAuthConfiguration()
 	accessToken, accessSecret, err := conf.AccessToken(
 		request.RequestToken,
@@ -86,18 +87,8 @@ func ReceivePIN(request *TwitterOAuthRequest) error {
 		OAuthTokenSecret: accessSecret,
 	}
 
-	err = models.CreateOAuthToken(token)
-	if err != nil {
-		return err
-	}
-
 	// Fetch the user ID
-	client, err := GetClient(request.Handle)
-	if err != nil {
-		log.Println("Could not establish client")
-		return err
-	}
-
+	client := GetClientFromToken(token)
 	verifyParams := &twitter.AccountVerifyParams{
 		SkipStatus:   twitter.Bool(true),
 		IncludeEmail: twitter.Bool(false),
@@ -108,8 +99,14 @@ func ReceivePIN(request *TwitterOAuthRequest) error {
 		return err
 	}
 
-	token.TwitterID = sql.NullInt64{Int64: user.ID, Valid: true}
-	return token.Save()
+	token.TwitterID = user.ID
+
+	err = models.CreateOAuthToken(token)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getOAuthConfiguration() *oauth1.Config {

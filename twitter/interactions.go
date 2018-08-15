@@ -6,7 +6,7 @@ import (
 )
 
 func SendDM(handle string, message string) error {
-	client, err := GetClient(VIPBotHandle)
+	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {
 		return err
 	}

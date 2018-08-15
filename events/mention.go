@@ -13,7 +13,7 @@ import (
 )
 
 func ListenForTwitterMentions(handle string, eventChan chan<- *Event, errChan chan<- error) {
-	client, err := twitter.GetClient(handle)
+	client, _, err := twitter.GetClientFromHandle(handle)
 	if err != nil {
 		errChan <- err
 		return

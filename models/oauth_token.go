@@ -1,18 +1,17 @@
 package models
 
 import (
-	"database/sql"
 	"strings"
 	"time"
 )
 
 type OAuthToken struct {
-	ID               int64         `db:"id"`
-	TwitterHandle    string        `db:"twitter_handle"`
-	TwitterID        sql.NullInt64 `db:"twitter_id"`
-	OAuthToken       string        `db:"oauth_token"`
-	OAuthTokenSecret string        `db:"oauth_token_secret"`
-	CreatedAt        time.Time     `db:"created_at"`
+	ID               int64     `db:"id"`
+	TwitterHandle    string    `db:"twitter_handle"`
+	TwitterID        int64     `db:"twitter_id"`
+	OAuthToken       string    `db:"oauth_token"`
+	OAuthTokenSecret string    `db:"oauth_token_secret"`
+	CreatedAt        time.Time `db:"created_at"`
 }
 
 func CreateOAuthToken(token *OAuthToken) error {

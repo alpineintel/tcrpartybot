@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS registration_challenges (
 --
 CREATE TABLE IF NOT EXISTS oauth_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    twitter_id         INTEGER,
+    twitter_id         INTEGER NOT NULL,
     twitter_handle     VARCHAR(15) NOT NULL,
     oauth_token        VARCHAR(64) NOT NULL,
     oauth_token_secret VARCHAR(64) NOT NULL,

@@ -6,6 +6,7 @@ import (
 	"github.com/tokenfoundry/tcrpartybot/models"
 	"github.com/tokenfoundry/tcrpartybot/twitter"
 	"log"
+	"strconv"
 )
 
 type RegistrationEventData struct {
@@ -15,9 +16,9 @@ type RegistrationEventData struct {
 }
 
 func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- error) {
-	client, err := twitter.GetClient(handle)
+	client, token, err := twitter.GetClientFromHandle(handle)
 	if err != nil {
-		log.Println("Could establish client listening to DMs")
+		log.Println("Could not establish client listening to DMs")
 		errChan <- err
 		return
 	}
@@ -31,11 +32,16 @@ func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- e
 	}
 
 	for _, event := range events.Events {
-		if event.Type == "message_create" {
-			log.Printf("Detect DM: %s", event.Message.SenderID)
-		} else {
-			log.Printf("Received event: %s", event.Type)
+		if event.Type != "message_create" {
+			continue
 		}
+
+		// If we are the sender we can safely ignore the value
+		if event.Message.SenderID == strconv.FormatInt(token.TwitterID, 10) {
+			continue
+		}
+
+		log.Printf("Received DM from %s: %s", event.Message.SenderID, event.Message.Data.Text)
 	}
 }
 

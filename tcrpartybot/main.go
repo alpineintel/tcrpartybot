@@ -51,7 +51,7 @@ func authenticateHandle(handle string, errChan chan<- error) {
 		Handle: handle,
 	}
 
-	url, err := twitter.GetOAuthURL(request)
+	url, err := request.GetOAuthURL()
 	if err != nil {
 		errChan <- err
 		return
@@ -67,7 +67,7 @@ func authenticateHandle(handle string, errChan chan<- error) {
 		return
 	}
 
-	err = twitter.ReceivePIN(request)
+	err = request.ReceivePIN()
 	if err != nil {
 		log.Println("Error fetching token")
 		errChan <- err

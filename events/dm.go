@@ -7,14 +7,20 @@ import (
 	"github.com/tokenfoundry/tcrpartybot/twitter"
 	"log"
 	"strconv"
+	"time"
 )
 
+// RegistrationEventData collects the required data for keeping track of
+// the user registration flow into a struct
 type RegistrationEventData struct {
 	Event     *Event
 	Challenge *models.RegistrationChallengeRegistrationQuestion
 	Account   *models.Account
 }
 
+// ListenForTwitterDM is a blocking function which polls the Twitter API for
+// new direct messages and sends them off to the eventChan for further
+// processing as they are received.
 func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- error) {
 	client, token, err := twitter.GetClientFromHandle(handle)
 	if err != nil {
@@ -23,25 +29,57 @@ func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- e
 		return
 	}
 
-	params := &goTwitter.DirectMessageEventsListParams{}
-	events, _, err := client.DirectMessages.EventsList(params)
-	if err != nil {
-		log.Println("Could not fetch event feed")
-		errChan <- err
-		return
-	}
-
-	for _, event := range events.Events {
-		if event.Type != "message_create" {
-			continue
+	for {
+		latestID, err := models.GetKey("latestDirectMessageID")
+		if err != nil {
+			log.Println("Error fetching latest ID")
+			errChan <- err
+			return
 		}
 
-		// If we are the sender we can safely ignore the value
-		if event.Message.SenderID == strconv.FormatInt(token.TwitterID, 10) {
-			continue
-		}
+		var cursor string
+		for {
+			params := &goTwitter.DirectMessageEventsListParams{
+				Cursor: cursor,
+				Count:  20,
+			}
+			events, _, err := client.DirectMessages.EventsList(params)
+			if err != nil {
+				log.Println("Could not fetch event feed")
+				errChan <- err
+				time.Sleep(10 * time.Second)
+				break
+			}
 
-		log.Printf("Received DM from %s: %s", event.Message.SenderID, event.Message.Data.Text)
+			// Store the latest cursor in our keyval store
+			models.SetKey("latestDirectMessageID", events.Events[0].ID)
+
+			for _, event := range events.Events {
+				if event.Type != "message_create" {
+					continue
+				}
+
+				// If this condition is true we've hit the most recently processed
+				// event on the last pull and don't need to process the remainder
+				// of the list.
+				if event.ID == latestID {
+					break
+				}
+
+				// If we are the sender we can safely ignore the value
+				if event.Message.SenderID == strconv.FormatInt(token.TwitterID, 10) {
+					continue
+				}
+
+				log.Printf("Received DM from %s: %s", event.Message.SenderID, event.Message.Data.Text)
+			}
+
+			time.Sleep(10 * time.Second)
+			if events.NextCursor == "" {
+				break
+			}
+			cursor = events.NextCursor
+		}
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"log"
 )
 
+// SendDM sends a direct message from the VIP party bot to the specified handle
 func SendDM(handle string, message string) error {
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {

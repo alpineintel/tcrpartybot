@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// ListenForTwitterMentions listens to the Twitter streaming API for any tweets
+// mentioning the VIP bot's handle. When received, it sends the events to a
+// channel for further processing.
 func ListenForTwitterMentions(handle string, eventChan chan<- *Event, errChan chan<- error) {
 	client, _, err := twitter.GetClientFromHandle(handle)
 	if err != nil {

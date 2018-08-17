@@ -61,3 +61,12 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
     oauth_token_secret VARCHAR(64) NOT NULL,
     created_at         DATETIME  DEFAULT CURRENT_TIMESTAMP
 );
+
+----
+-- Key value store
+--
+CREATE TABLE IF NOT EXISTS keyval_store (
+    key   VARCHAR NOT NULL PRIMARY KEY,
+    value VARCHAR
+);
+CREATE UNIQUE INDEX IF NOT EXISTS unique_keys ON keyval_store (key);

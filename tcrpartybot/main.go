@@ -47,7 +47,7 @@ func logErrors(errorChan <-chan error) {
 }
 
 func authenticateHandle(handle string, errChan chan<- error) {
-	request := &twitter.TwitterOAuthRequest{
+	request := &twitter.OAuthRequest{
 		Handle: handle,
 	}
 

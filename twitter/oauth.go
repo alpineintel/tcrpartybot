@@ -16,12 +16,16 @@ const (
 	PartyBotHandle = "party"
 )
 
-type TwitterOAuthRequest struct {
+// OAuthRequest collects all required information for completing the
+// OAuth1 authentication flow
+type OAuthRequest struct {
 	Handle       string
 	PIN          string
 	RequestToken string
 }
 
+// GetClientFromHandle returns a twitter client given a handle constant (ie vip
+// or party) or an explicit twitter handle.
 func GetClientFromHandle(handle string) (*twitter.Client, *models.OAuthToken, error) {
 	if handle == VIPBotHandle {
 		handle = os.Getenv("VIP_BOT_HANDLE")
@@ -50,7 +54,7 @@ func GetClientFromToken(oauthToken *models.OAuthToken) *twitter.Client {
 	return twitter.NewClient(httpClient)
 }
 
-func (request *TwitterOAuthRequest) GetOAuthURL() (string, error) {
+func (request *OAuthRequest) GetOAuthURL() (string, error) {
 	conf := getOAuthConfiguration()
 
 	requestToken, _, err := conf.RequestToken()
@@ -68,7 +72,7 @@ func (request *TwitterOAuthRequest) GetOAuthURL() (string, error) {
 	return authorizationURL.String(), nil
 }
 
-func (request *TwitterOAuthRequest) ReceivePIN() error {
+func (request *OAuthRequest) ReceivePIN() error {
 	conf := getOAuthConfiguration()
 	accessToken, accessSecret, err := conf.AccessToken(
 		request.RequestToken,

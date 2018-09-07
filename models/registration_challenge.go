@@ -5,9 +5,13 @@ import (
 )
 
 const (
-	REGISTRATION_CHALLENGE_COUNT = 3
+	// RegistrationChallengeCount is the number of registration challenges
+	// required to be completed before a user is considered registered.
+	RegistrationChallengeCount = 1
 )
 
+// RegistrationChallenge is a mapping between users and registration questions,
+// facilitating the registration process
 type RegistrationChallenge struct {
 	ID                     int64      `db:"id"`
 	AccountID              int64      `db:"account_id"`
@@ -16,11 +20,14 @@ type RegistrationChallenge struct {
 	CompletedAt            *time.Time `db:"completed_at"`
 }
 
+// RegistrationChallengeRegistrationQuestion is a union between challenges and
+// questions to facilitate joins between the two tables.
 type RegistrationChallengeRegistrationQuestion struct {
 	RegistrationChallenge
 	RegistrationQuestion `db:"registration_questions"`
 }
 
+// CreateRegistrationChallenge stores a new challenge in the database
 func CreateRegistrationChallenge(account *Account, question *RegistrationQuestion) (*RegistrationChallenge, error) {
 	db := GetDBSession()
 

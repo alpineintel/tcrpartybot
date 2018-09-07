@@ -17,6 +17,7 @@ type Event struct {
 	EventType    EventType // type of event
 	Time         time.Time // timestamp
 	SourceHandle string    // twitter handle sending
+	SourceID     int64     // twitter ID of the handle
 	Message      string    // whole message
 }
 

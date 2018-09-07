@@ -47,7 +47,7 @@ func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- e
 			if err != nil {
 				log.Println("Could not fetch event feed")
 				errChan <- err
-				time.Sleep(10 * time.Second)
+				time.Sleep(2 * time.Minute)
 				break
 			}
 
@@ -74,7 +74,7 @@ func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- e
 				log.Printf("Received DM from %s: %s", event.Message.SenderID, event.Message.Data.Text)
 			}
 
-			time.Sleep(10 * time.Second)
+			time.Sleep(1 * time.Minute)
 			if events.NextCursor == "" {
 				break
 			}

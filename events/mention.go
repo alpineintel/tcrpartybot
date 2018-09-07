@@ -41,6 +41,7 @@ func ListenForTwitterMentions(handle string, eventChan chan<- *Event, errChan ch
 	demux.Tweet = func(tweet *goTwitter.Tweet) {
 		eventChan <- &Event{
 			EventType:    EventTypeMention,
+			SourceID:     tweet.User.ID,
 			SourceHandle: tweet.User.Name,
 			Message:      tweet.Text,
 		}
@@ -52,7 +53,7 @@ func ListenForTwitterMentions(handle string, eventChan chan<- *Event, errChan ch
 }
 
 func processMention(event *Event, errChan chan<- error) {
-	log.Printf("\nReceived mention from %s: %s", event.SourceHandle, event.Message)
+	log.Printf("\nReceived mention from %s [%d]: %s", event.SourceHandle, event.SourceID, event.Message)
 	// Filter based on let's party
 	lower := strings.ToLower(event.Message)
 	if strings.Contains(lower, "let's party") {
@@ -81,6 +82,7 @@ func processRegistration(event *Event, errChan chan<- error) {
 	// Store the association between their handle and their wallet in our db
 	account = &models.Account{
 		TwitterHandle: event.SourceHandle,
+		TwitterID:     event.SourceID,
 		ETHAddress:    address,
 		ETHPrivateKey: privateKey,
 	}
@@ -91,7 +93,7 @@ func processRegistration(event *Event, errChan chan<- error) {
 	}
 
 	// Generate three registration challenges for them
-	questions, err := models.FetchRandomRegistrationQuestions(models.REGISTRATION_CHALLENGE_COUNT)
+	questions, err := models.FetchRandomRegistrationQuestions(models.RegistrationChallengeCount)
 
 	if err != nil {
 		errChan <- err
@@ -99,7 +101,7 @@ func processRegistration(event *Event, errChan chan<- error) {
 	}
 
 	// Create a list of challenges for the new user to complete
-	challenges := make([]*models.RegistrationChallenge, models.REGISTRATION_CHALLENGE_COUNT)
+	challenges := make([]*models.RegistrationChallenge, models.RegistrationChallengeCount)
 	for i, question := range questions {
 		challenges[i], err = models.CreateRegistrationChallenge(account, &question)
 

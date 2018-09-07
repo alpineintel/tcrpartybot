@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	HELP_STRING = `Welcome to the TCR Party REPL! Available commands:
+	HelpString = `Welcome to the TCR Party REPL! Available commands:
 	dm [from handle, w/o @] [message]      - Simulates a Twitter DM
 	mention [from handle, w/o @] [message] - Simulates a Twitter mention
 	auth-vip                               - Begins auth bot auth flow
@@ -78,7 +78,7 @@ func authenticateHandle(handle string, errChan chan<- error) {
 }
 
 func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
-	fmt.Print(HELP_STRING)
+	fmt.Print(HelpString)
 
 	for {
 		// Give the other channels a chance to process and print a response
@@ -164,13 +164,13 @@ func main() {
 	if err != nil {
 		log.Printf("Credentials for party bot not found. Please authenticate!")
 	} else {
-		go events.ListenForTwitterMentions(os.Getenv("PARTY_BOT_HANDLE"), eventChan, errorChan)
 	}
 
 	_, err = models.FindOAuthTokenByHandle(os.Getenv("VIP_BOT_HANDLE"))
 	if err != nil {
 		log.Printf("Credentials for vip bot not found. Please authenticate!")
 	} else {
+		go events.ListenForTwitterMentions(os.Getenv("VIP_BOT_HANDLE"), eventChan, errorChan)
 		go events.ListenForTwitterDM(os.Getenv("VIP_BOT_HANDLE"), eventChan, errorChan)
 	}
 

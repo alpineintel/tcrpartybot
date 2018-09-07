@@ -4,6 +4,8 @@ import (
 	"time"
 )
 
+// Account represents a twitter account that interacts with our bot. They may
+// or may not be a member on the TCR or a token holder.
 type Account struct {
 	ID                            int64      `db:"id"`
 	TwitterID                     int64      `db:"twitter_id"`
@@ -20,10 +22,11 @@ func CreateAccount(account *Account) error {
 	result := db.MustExec(`
 		INSERT INTO accounts (
 			twitter_handle,
+			twitter_id,
 			eth_address,
 			eth_private_key
-		) VALUES($1, $2, $3)
-	`, account.TwitterHandle, account.ETHAddress, account.ETHPrivateKey)
+		) VALUES($1, $2, $3, $4)
+	`, account.TwitterHandle, account.TwitterID, account.ETHAddress, account.ETHPrivateKey)
 
 	id, err := result.LastInsertId()
 	if err != nil {
@@ -65,7 +68,7 @@ func AccountHasCompletedChallenges(accountId int64) (bool, error) {
 		return false, err
 	}
 
-	return count == REGISTRATION_CHALLENGE_COUNT, nil
+	return count == RegistrationChallengeCount, nil
 }
 
 func MarkAccountRegistered(accountId int64) error {

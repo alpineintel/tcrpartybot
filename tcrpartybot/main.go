@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/joho/godotenv"
+	"gitlab.com/alpinefresh/tcrpartybot/api"
 	"gitlab.com/alpinefresh/tcrpartybot/events"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
@@ -174,6 +175,7 @@ func main() {
 	}
 
 	go events.ProcessEvents(eventChan, errorChan)
+	go api.StartServer(eventChan, errorChan)
 	go logErrors(errorChan)
 
 	beginRepl(eventChan, errorChan)

@@ -21,7 +21,8 @@ const (
 	mention [from handle, w/o @] [message] - Simulates a Twitter mention
 	auth-vip                               - Begins auth bot auth flow
 	auth-party                             - Begins retweet bot auth flow
-	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot`
+	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot
+	create-webhook                         - Creates a webhook for listening on DMs`
 )
 
 /*
@@ -41,8 +42,8 @@ type TCRContract interface {
 	GetExpiry(nominee string) (time.Time, error)
 }
 
-func logErrors(errorChan <-chan error) {
-	for err := range errorChan {
+func logErrors(errChan <-chan error) {
+	for err := range errChan {
 		log.Printf("\n%s", err)
 	}
 }
@@ -78,6 +79,34 @@ func authenticateHandle(handle string, errChan chan<- error) {
 	log.Println("Access token saved!")
 }
 
+func createWebhook(errChan chan<- error) {
+	webhookID, err := models.GetKey("webhookID")
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	// If we don't already have a webhook ID we should create it
+	if webhookID == "" {
+		id, err := twitter.CreateWebhook()
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		log.Printf("Webhook %s created successfully", id)
+		models.SetKey("webhookID", id)
+	}
+
+	// And subscribe to TCRPartyVIP's DMs
+
+	if err := twitter.CreateSubscription(); err != nil {
+		errChan <- err
+		return
+	}
+	log.Printf("Subscription created successfully")
+}
+
 func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 	fmt.Print(HelpString)
 
@@ -106,6 +135,10 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 			break
 		case "auth-party":
 			authenticateHandle(os.Getenv("PARTY_BOT_HANDLE"), errChan)
+			break
+
+		case "create-webhook":
+			createWebhook(errChan)
 			break
 		case "send-dm":
 			if argc < 2 {
@@ -157,7 +190,7 @@ func main() {
 	}
 
 	eventChan := make(chan *events.Event)
-	errorChan := make(chan error)
+	errChan := make(chan error)
 
 	models.GetDBSession()
 
@@ -171,12 +204,12 @@ func main() {
 	if err != nil {
 		log.Printf("Credentials for vip bot not found. Please authenticate!")
 	} else {
-		go events.ListenForTwitterMentions(os.Getenv("VIP_BOT_HANDLE"), eventChan, errorChan)
+		go events.ListenForTwitterMentions(os.Getenv("VIP_BOT_HANDLE"), eventChan, errChan)
 	}
 
-	go events.ProcessEvents(eventChan, errorChan)
-	go api.StartServer(eventChan, errorChan)
-	go logErrors(errorChan)
+	go events.ProcessEvents(eventChan, errChan)
+	go api.StartServer(eventChan, errChan)
+	go logErrors(errChan)
 
-	beginRepl(eventChan, errorChan)
+	beginRepl(eventChan, errChan)
 }

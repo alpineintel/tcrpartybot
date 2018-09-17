@@ -8,7 +8,20 @@ _More docs to come..._
 
 ## Environment variables
 ```
+VIP_BOT_HANDLE=tcrpartyvip
+PARTY_BOT_HANDLE=tcrpartybot
+DATABASE_URI=data.db
 TWITTER_CONSUMER_KEY=
 TWITTER_CONSUMER_SECRET=
-DATABASE_URI=./data.db
+
+BASE_URL=https://bbd828f3.ngrok.io
+SERVER_HOST=0.0.0.0:8080
 ```
+
+## Setup
+Warning: hastily written documentation ahead. This will be improved before
+release:
+
+1. Spin up the binary.
+2. Run `auth-vip` and `auth-party` to set up Twitter OAuth credentials.
+3. Run `create-webhook` to create the webhook that allows for receiving DMs

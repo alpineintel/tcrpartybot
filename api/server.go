@@ -28,7 +28,7 @@ type incomingWebhook struct {
 	DirectMessageEvents []incomingDM `json:"direct_message_events"`
 }
 
-func handleWebhook(w http.ResponseWriter, r *http.Request) {
+func handleTwitterWebhook(w http.ResponseWriter, r *http.Request) {
 	// A GET request signals that Twitter is attempting a CRC request
 	if r.Method == "GET" {
 		keys, ok := r.URL.Query()["crc_token"]
@@ -64,8 +64,8 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 // StartServer spins up a webserver for the API
 func StartServer(eventsChan chan<- *events.Event, errChan chan<- error) {
-	http.HandleFunc("/webhooks/direct-message", handleWebhook)
-	err := http.ListenAndServe(":8080", nil)
+	http.HandleFunc("/webhooks/twitter", handleTwitterWebhook)
+	err := http.ListenAndServe(os.Getenv("SERVER_HOST"), nil)
 	if err != nil {
 		errChan <- err
 	}

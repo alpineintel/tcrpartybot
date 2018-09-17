@@ -4,15 +4,21 @@ import (
 	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	twitterOAuth "github.com/dghubble/oauth1/twitter"
-	"github.com/tokenfoundry/tcrpartybot/models"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"log"
 	"os"
 )
 
 const (
+	// OutOfBand is used for setting the callback URL on the twitter OAuth
+	// endpoint
 	OutOfBand = "oob"
 
-	VIPBotHandle   = "vip"
+	// VIPBotHandle is a placeholder which is resolved to the real handle via
+	// an environment variable.
+	VIPBotHandle = "vip"
+	// PartyBotHandle is a placeholder which is resolved to the real handle via
+	// an environment variable.
 	PartyBotHandle = "party"
 )
 
@@ -46,6 +52,7 @@ func GetClientFromHandle(handle string) (*twitter.Client, *models.OAuthToken, er
 	return twitter.NewClient(httpClient), oauthToken, nil
 }
 
+// GetClientFromToken returns a twitter client given an OAuth token
 func GetClientFromToken(oauthToken *models.OAuthToken) *twitter.Client {
 	conf := getOAuthConfiguration()
 	token := oauth1.NewToken(oauthToken.OAuthToken, oauthToken.OAuthTokenSecret)
@@ -54,6 +61,8 @@ func GetClientFromToken(oauthToken *models.OAuthToken) *twitter.Client {
 	return twitter.NewClient(httpClient)
 }
 
+// GetOAuthURL returns a URL that can be used to authenticate a user via the
+// OAuth 1 API
 func (request *OAuthRequest) GetOAuthURL() (string, error) {
 	conf := getOAuthConfiguration()
 
@@ -72,6 +81,8 @@ func (request *OAuthRequest) GetOAuthURL() (string, error) {
 	return authorizationURL.String(), nil
 }
 
+// ReceivePIN completes the OAuth dance by retrieving user info. Note that it
+// requires the PIN to be set on the OAuthRequest struct.
 func (request *OAuthRequest) ReceivePIN() error {
 	conf := getOAuthConfiguration()
 	accessToken, accessSecret, err := conf.AccessToken(

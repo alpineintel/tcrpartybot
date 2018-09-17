@@ -6,8 +6,8 @@ import (
 	"fmt"
 	goTwitter "github.com/dghubble/go-twitter/twitter"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/tokenfoundry/tcrpartybot/models"
-	"github.com/tokenfoundry/tcrpartybot/twitter"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
+	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
 	"strings"
 )

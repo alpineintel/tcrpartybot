@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/joho/godotenv"
-	"github.com/tokenfoundry/tcrpartybot/events"
-	"github.com/tokenfoundry/tcrpartybot/models"
-	"github.com/tokenfoundry/tcrpartybot/twitter"
+	"gitlab.com/alpinefresh/tcrpartybot/events"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
+	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
 	"os"
 	"strings"
@@ -171,7 +171,6 @@ func main() {
 		log.Printf("Credentials for vip bot not found. Please authenticate!")
 	} else {
 		go events.ListenForTwitterMentions(os.Getenv("VIP_BOT_HANDLE"), eventChan, errorChan)
-		go events.ListenForTwitterDM(os.Getenv("VIP_BOT_HANDLE"), eventChan, errorChan)
 	}
 
 	go events.ProcessEvents(eventChan, errorChan)

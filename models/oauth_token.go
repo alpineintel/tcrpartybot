@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// OAuthToken stores the data required to control the two bots which act as the
+// frontend for our TCR. This table should only have two rows, one for the TCR
+// Bot and one for the VIP bot.
 type OAuthToken struct {
 	ID               int64     `db:"id"`
 	TwitterHandle    string    `db:"twitter_handle"`
@@ -14,6 +17,7 @@ type OAuthToken struct {
 	CreatedAt        time.Time `db:"created_at"`
 }
 
+// CreateOAuthToken inserts a new OAuth token into the database
 func CreateOAuthToken(token *OAuthToken) error {
 	db := GetDBSession()
 
@@ -35,6 +39,7 @@ func CreateOAuthToken(token *OAuthToken) error {
 	return nil
 }
 
+// FindOAuthTokenByHandle returns an OAuth token given a twitter handle
 func FindOAuthTokenByHandle(handle string) (*OAuthToken, error) {
 	db := GetDBSession()
 
@@ -49,6 +54,7 @@ func FindOAuthTokenByHandle(handle string) (*OAuthToken, error) {
 	return &token, nil
 }
 
+// Save saves the OAuthToken to the database
 func (token *OAuthToken) Save() error {
 	db := GetDBSession()
 

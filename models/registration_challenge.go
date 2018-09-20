@@ -7,7 +7,7 @@ import (
 const (
 	// RegistrationChallengeCount is the number of registration challenges
 	// required to be completed before a user is considered registered.
-	RegistrationChallengeCount = 1
+	RegistrationChallengeCount = 3
 )
 
 // RegistrationChallenge is a mapping between users and registration questions,

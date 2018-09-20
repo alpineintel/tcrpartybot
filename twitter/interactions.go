@@ -28,6 +28,19 @@ func SendDM(recipientID int64, message string) error {
 	return nil
 }
 
+// Follow will create a new friendship with the given user ID
+func Follow(userID int64) error {
+	client, _, err := GetClientFromHandle(VIPBotHandle)
+
+	follow := true
+	params := &twitter.FriendshipCreateParams{
+		UserID: userID,
+		Follow: &follow,
+	}
+	_, _, err = client.Friendships.Create(params)
+	return err
+}
+
 // CreateWebhook creates a new webhook and subscribes it to the user, allowing
 // us to receive notifications for new DMs. This should only be used on the
 // TCRPartyVIP bot.

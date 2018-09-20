@@ -26,7 +26,7 @@ func processRegistration(event *Event, errChan chan<- error) {
 		return
 	}
 
-	log.Printf("Creating account for %s", event.SourceID)
+	log.Printf("Creating account for %d", event.SourceID)
 	// Let's create a wallet for them
 	key, err := crypto.GenerateKey()
 	if err != nil {
@@ -76,7 +76,8 @@ func processRegistration(event *Event, errChan chan<- error) {
 	}
 
 	firstChallenge := challenges[0]
-	err = twitter.SendDM(account.TwitterID, questions[0].Question)
+	text := "Welcome to the party! Before we put you on the VIP list, we need to make sure you're a human. Here's an easy question for you: " + questions[0].Question
+	err = twitter.SendDM(account.TwitterID, text)
 	if err != nil {
 		errChan <- err
 		return

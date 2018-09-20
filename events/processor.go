@@ -11,6 +11,7 @@ const (
 	EventTypeDM            EventType = "EventTypeDM"
 	EventTypeVote          EventType = "EventTypeVote"
 	EventTypePollCompleted EventType = "EventTypePollCompleted"
+	EventTypeFollow        EventType = "EventTypeFollow"
 )
 
 type Event struct {
@@ -27,6 +28,10 @@ func ProcessEvents(eventChan <-chan *Event, errorChan chan<- error) {
 		switch event.EventType {
 		case EventTypeMention:
 			processMention(event, errorChan)
+			break
+
+		case EventTypeFollow:
+			processFollow(event, errorChan)
 			break
 
 		case EventTypeDM:

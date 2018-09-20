@@ -5,10 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"gitlab.com/alpinefresh/tcrpartybot/events"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 )
 
 type incomingDM struct {
@@ -23,12 +27,78 @@ type incomingDM struct {
 	} `json:"message_create"`
 }
 
-type incomingWebhook struct {
-	ForUserID           string       `json:"for_user_id"`
-	DirectMessageEvents []incomingDM `json:"direct_message_events"`
+type user struct {
+	ID         int64  `json:"id"`
+	ScreenName string `json:"screen_name"`
 }
 
-func handleTwitterWebhook(w http.ResponseWriter, r *http.Request) {
+type incomingTweet struct {
+	Text string `json:"text"`
+	User user   `json:"user"`
+}
+
+type incomingWebhook struct {
+	ForUserID           string          `json:"for_user_id"`
+	DirectMessageEvents []incomingDM    `json:"direct_message_events"`
+	TweetCreateEvents   []incomingTweet `json:"tweet_create_events"`
+}
+
+// Server holds relevant data for running an API server
+type Server struct {
+	errChan    chan<- error
+	eventsChan chan<- *events.Event
+}
+
+func (server *Server) processDMs(dms []incomingDM) {
+	botToken, err := models.FindOAuthTokenByHandle(os.Getenv("VIP_BOT_HANDLE"))
+	if err != nil || botToken == nil {
+		return
+	}
+
+	for _, dm := range dms {
+		fromID, err := strconv.ParseInt(dm.MessageCreated.SenderID, 10, 64)
+		if err != nil {
+			server.errChan <- err
+			continue
+		}
+
+		// Ignore outgoing DM events
+		if fromID == botToken.TwitterID {
+			continue
+		}
+
+		account, err := models.FindAccountByID(fromID)
+		if err != nil {
+			server.errChan <- err
+			continue
+		} else if account == nil {
+			server.errChan <- errors.New("Could not find account for incoming DM")
+			continue
+		}
+
+		server.eventsChan <- &events.Event{
+			EventType:    events.EventTypeDM,
+			Time:         time.Now(),
+			SourceHandle: account.TwitterHandle,
+			SourceID:     account.TwitterID,
+			Message:      dm.MessageCreated.MessageData.Text,
+		}
+	}
+}
+
+func (server *Server) processMentions(tweets []incomingTweet) {
+	for _, tweet := range tweets {
+		server.eventsChan <- &events.Event{
+			EventType:    events.EventTypeMention,
+			Time:         time.Now(),
+			SourceHandle: tweet.User.ScreenName,
+			SourceID:     tweet.User.ID,
+			Message:      tweet.Text,
+		}
+	}
+}
+
+func (server *Server) handleTwitterWebhook(w http.ResponseWriter, r *http.Request) {
 	// A GET request signals that Twitter is attempting a CRC request
 	if r.Method == "GET" {
 		keys, ok := r.URL.Query()["crc_token"]
@@ -57,16 +127,30 @@ func handleTwitterWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println(data.DirectMessageEvents[0])
+	if len(data.DirectMessageEvents) > 0 {
+		go server.processDMs(data.DirectMessageEvents)
+	}
+
+	if len(data.TweetCreateEvents) > 0 {
+		go server.processMentions(data.TweetCreateEvents)
+	}
+
 	w.WriteHeader(200)
 	w.Write([]byte("OK"))
 }
 
 // StartServer spins up a webserver for the API
-func StartServer(eventsChan chan<- *events.Event, errChan chan<- error) {
-	http.HandleFunc("/webhooks/twitter", handleTwitterWebhook)
+func StartServer(eventsChan chan<- *events.Event, errChan chan<- error) *Server {
+	server := &Server{
+		eventsChan: eventsChan,
+		errChan:    errChan,
+	}
+
+	http.HandleFunc("/webhooks/twitter", server.handleTwitterWebhook)
 	err := http.ListenAndServe(os.Getenv("SERVER_HOST"), nil)
 	if err != nil {
 		errChan <- err
 	}
+
+	return server
 }

@@ -4,26 +4,27 @@ import (
 	"github.com/dghubble/go-twitter/twitter"
 	"log"
 	"os"
+	"strconv"
 )
 
 // SendDM sends a direct message from the VIP party bot to the specified handle
-func SendDM(handle string, message string) error {
+func SendDM(recipientID int64, message string) error {
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {
 		return err
 	}
 
-	_, _, err = client.DirectMessages.New(&twitter.DirectMessageNewParams{
-		ScreenName: handle,
-		Text:       message,
+	_, _, err = client.DirectMessages.EventsCreate(&twitter.DirectMessageEventsCreateParams{
+		RecipientID: strconv.FormatInt(recipientID, 10),
+		Text:        message,
 	})
 
 	if err != nil {
-		log.Printf("Failed sending DM to %s: %s", handle, message)
+		log.Printf("Failed sending DM to %d: %s", recipientID, message)
 		return err
 	}
 
-	log.Printf("Sent DM to %s: %s", handle, message)
+	log.Printf("Sent DM to %d: %s", recipientID, message)
 	return nil
 }
 
@@ -37,7 +38,7 @@ func CreateWebhook() (string, error) {
 	}
 
 	webhookParams := &twitter.AccountActivityRegisterWebhookParams{
-		EnvName: "dev",
+		EnvName: os.Getenv("TWITTER_ENV"),
 		URL:     os.Getenv("BASE_URL") + "/webhooks/twitter",
 	}
 	webhook, _, err := client.AccountActivity.RegisterWebhook(webhookParams)
@@ -56,7 +57,7 @@ func CreateSubscription() error {
 	}
 
 	subParams := &twitter.AccountActivityCreateSubscriptionParams{
-		EnvName: "dev",
+		EnvName: os.Getenv("TWITTER_ENV"),
 	}
 	_, err = client.AccountActivity.CreateSubscription(subParams)
 

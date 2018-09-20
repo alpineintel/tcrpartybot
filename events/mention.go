@@ -3,8 +3,6 @@ package events
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
-	goTwitter "github.com/dghubble/go-twitter/twitter"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
@@ -12,63 +10,23 @@ import (
 	"strings"
 )
 
-// ListenForTwitterMentions listens to the Twitter streaming API for any tweets
-// mentioning the VIP bot's handle. When received, it sends the events to a
-// channel for further processing.
-func ListenForTwitterMentions(handle string, eventChan chan<- *Event, errChan chan<- error) {
-	client, _, err := twitter.GetClientFromHandle(handle)
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	// Open up a twitter stream filtering for @TCRBotVIP mentions
-	mentionString := fmt.Sprintf("@%s", handle)
-	params := &goTwitter.StreamFilterParams{
-		Track:         []string{mentionString},
-		StallWarnings: goTwitter.Bool(false),
-	}
-
-	stream, err := client.Streams.Filter(params)
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	// Convert incoming tweets to our native event struct and hand it off to
-	// the events channel
-	demux := goTwitter.NewSwitchDemux()
-	demux.Tweet = func(tweet *goTwitter.Tweet) {
-		eventChan <- &Event{
-			EventType:    EventTypeMention,
-			SourceID:     tweet.User.ID,
-			SourceHandle: tweet.User.Name,
-			Message:      tweet.Text,
-		}
-	}
-
-	for message := range stream.Messages {
-		demux.Handle(message)
-	}
-}
-
 func processMention(event *Event, errChan chan<- error) {
 	log.Printf("\nReceived mention from %s [%d]: %s", event.SourceHandle, event.SourceID, event.Message)
 	// Filter based on let's party
 	lower := strings.ToLower(event.Message)
-	if strings.Contains(lower, "let's party") {
+	if strings.Contains(lower, "party") {
 		processRegistration(event, errChan)
 	}
 }
 
 func processRegistration(event *Event, errChan chan<- error) {
 	// If they already have an account we don't need to continue
-	account, _ := models.FindAccountByHandle(event.SourceHandle)
-	if account != nil {
+	account, err := models.FindAccountByID(event.SourceID)
+	if account != nil || err != nil {
 		return
 	}
 
-	log.Printf("Creating account for %s", event.SourceHandle)
+	log.Printf("Creating account for %s", event.SourceID)
 	// Let's create a wallet for them
 	key, err := crypto.GenerateKey()
 	if err != nil {
@@ -118,7 +76,11 @@ func processRegistration(event *Event, errChan chan<- error) {
 	}
 
 	firstChallenge := challenges[0]
-	twitter.SendDM(account.TwitterHandle, questions[0].Question)
+	err = twitter.SendDM(account.TwitterID, questions[0].Question)
+	if err != nil {
+		errChan <- err
+		return
+	}
 
 	err = models.MarkRegistrationChallengeSent(firstChallenge.ID)
 	if err != nil {

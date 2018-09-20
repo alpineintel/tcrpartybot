@@ -88,7 +88,7 @@ func processDM(event *Event, errChan chan<- error) {
 
 	// If they don't have an acccount, do nothing.
 	account, err := models.FindAccountByHandle(event.SourceHandle)
-	if err != nil {
+	if account == nil || err != nil {
 		return
 	}
 
@@ -96,7 +96,11 @@ func processDM(event *Event, errChan chan<- error) {
 	if account.PassedRegistrationChallengeAt != nil {
 		// They're already registered, trying to send some kind of command to
 		// the bot
-		twitter.SendDM(account.TwitterHandle, "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token.")
+		err := twitter.SendDM(account.TwitterID, "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token.")
+
+		if err != nil {
+			errChan <- err
+		}
 		return
 	}
 
@@ -122,7 +126,10 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 	// Check to see if they've responded with the correct answer
 	if data.Event.Message != data.Challenge.Answer {
 		response := fmt.Sprintf("🙅‍♀️ That's not right! %s", data.Challenge.Question)
-		twitter.SendDM(data.Account.TwitterHandle, response)
+		err := twitter.SendDM(data.Account.TwitterID, response)
+		if err != nil {
+			errChan <- err
+		}
 		return
 	}
 
@@ -149,7 +156,10 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 			return
 		}
 
-		twitter.SendDM(data.Account.TwitterHandle, "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈.")
+		err = twitter.SendDM(data.Account.TwitterID, "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈.")
+		if err != nil {
+			errChan <- err
+		}
 		return
 	}
 
@@ -167,5 +177,8 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 	}
 
 	response := fmt.Sprintf("Nice, that's it! Here's another one for you: %s", activeChallenge.Question)
-	twitter.SendDM(data.Account.TwitterHandle, response)
+	err = twitter.SendDM(data.Account.TwitterID, response)
+	if err != nil {
+		errChan <- err
+	}
 }

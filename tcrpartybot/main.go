@@ -11,6 +11,7 @@ import (
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -146,7 +147,13 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 				continue
 			}
 
-			err := twitter.SendDM(args[0], strings.Join(args[1:], " "))
+			twitterID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				errChan <- err
+				continue
+			}
+
+			err = twitter.SendDM(twitterID, strings.Join(args[1:], " "))
 			if err != nil {
 				errChan <- err
 				continue
@@ -197,14 +204,11 @@ func main() {
 	_, err = models.FindOAuthTokenByHandle(os.Getenv("PARTY_BOT_HANDLE"))
 	if err != nil {
 		log.Printf("Credentials for party bot not found. Please authenticate!")
-	} else {
 	}
 
 	_, err = models.FindOAuthTokenByHandle(os.Getenv("VIP_BOT_HANDLE"))
 	if err != nil {
 		log.Printf("Credentials for vip bot not found. Please authenticate!")
-	} else {
-		go events.ListenForTwitterMentions(os.Getenv("VIP_BOT_HANDLE"), eventChan, errChan)
 	}
 
 	go events.ProcessEvents(eventChan, errChan)

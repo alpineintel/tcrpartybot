@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -37,14 +38,35 @@ func CreateAccount(account *Account) error {
 	return nil
 }
 
+// FindAccountByHandle searches for a given account based on its handle or
+// returns nil if it cannot be found
 func FindAccountByHandle(handle string) (*Account, error) {
 	db := GetDBSession()
 
 	account := Account{}
 	err := db.Get(&account, "SELECT * FROM accounts WHERE twitter_handle=$1", handle)
 
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	return &account, nil
+}
+
+// FindAccountByID searches for a given account based on the provided ID or
+// returns nil if it cannot be found
+func FindAccountByID(id int64) (*Account, error) {
+	db := GetDBSession()
+
+	account := Account{}
+	err := db.Get(&account, "SELECT * FROM accounts WHERE twitter_id=$1", id)
+
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
 	}
 
 	return &account, nil

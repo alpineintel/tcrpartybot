@@ -50,6 +50,7 @@ func CreateWebhook() (string, error) {
 	return webhook.ID, nil
 }
 
+// CreateSubscription subscribes the current webhook to the given user
 func CreateSubscription() error {
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {

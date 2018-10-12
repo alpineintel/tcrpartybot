@@ -3,6 +3,7 @@ package events
 import (
 	"fmt"
 	goTwitter "github.com/dghubble/go-twitter/twitter"
+	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
@@ -96,8 +97,22 @@ func processDM(event *Event, errChan chan<- error) {
 	if account.PassedRegistrationChallengeAt != nil {
 		// They're already registered, trying to send some kind of command to
 		// the bot
-		err := twitter.SendDM(account.TwitterID, "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token.")
 
+		var msg string
+		switch event.Message {
+		case "balance":
+			balance, err := contracts.GetTokenBalance(account.ETHAddress)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			msg = fmt.Sprintf("Your balance is %d TCRP", balance)
+		default:
+			msg = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
+		}
+
+		err := twitter.SendDM(account.TwitterID, msg)
 		if err != nil {
 			errChan <- err
 		}

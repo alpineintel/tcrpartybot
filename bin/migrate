@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+migrate \
+    -source file://./migrations \
+    -database postgres://localhost:5432/tcrparty?sslmode=disable \
+    $(echo $*)

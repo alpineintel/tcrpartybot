@@ -100,7 +100,6 @@ func createWebhook(errChan chan<- error) {
 	}
 
 	// And subscribe to TCRPartyVIP's DMs
-
 	if err := twitter.CreateSubscription(); err != nil {
 		errChan <- err
 		return

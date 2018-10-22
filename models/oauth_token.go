@@ -21,16 +21,17 @@ type OAuthToken struct {
 func CreateOAuthToken(token *OAuthToken) error {
 	db := GetDBSession()
 
-	result := db.MustExec(`
+	var id int64
+	err := db.QueryRow(`
 		INSERT INTO oauth_tokens (
 			twitter_handle,
 			oauth_token,
 			oauth_token_secret,
 			twitter_id
 		) VALUES($1, $2, $3, $4)
-	`, token.TwitterHandle, token.OAuthToken, token.OAuthTokenSecret, token.TwitterID)
+		RETURNING id
+	`, token.TwitterHandle, token.OAuthToken, token.OAuthTokenSecret, token.TwitterID).Scan(&id)
 
-	id, err := result.LastInsertId()
 	if err != nil {
 		return err
 	}

@@ -14,7 +14,8 @@ func SetKey(key string, value string) error {
 	db := GetDBSession()
 
 	result := db.MustExec(`
-		INSERT OR REPLACE INTO keyval_store (key, value) VALUES($1, $2);
+		INSERT INTO keyval_store (key, value) VALUES($1, $2)
+		ON CONFLICT (key) DO UPDATE SET value=$2
 	`, key, value)
 
 	_, err := result.RowsAffected()

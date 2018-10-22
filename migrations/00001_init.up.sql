@@ -4,7 +4,7 @@
 CREATE TABLE public.accounts (
     id                               SERIAL PRIMARY KEY NOT NULL,
     twitter_handle                   VARCHAR(15) NOT NULL,
-    twitter_id                       INTEGER NOT NULL,
+    twitter_id                       BIGINT NOT NULL,
     eth_private_key                  VARCHAR(64) NOT NULL,
     passed_registration_challenge_at TIMESTAMP WITHOUT TIME ZONE,
     created_at                       TIMESTAMP WITHOUT TIME ZONE NOT NULL
@@ -51,7 +51,7 @@ CREATE TABLE public.registration_challenges (
 --
 CREATE TABLE public.oauth_tokens (
     id                 SERIAL PRIMARY KEY NOT NULL,
-    twitter_id         INTEGER NOT NULL,
+    twitter_id         BIGINT NOT NULL,
     twitter_handle     VARCHAR(15) NOT NULL,
     oauth_token        VARCHAR(64) NOT NULL,
     oauth_token_secret VARCHAR(64) NOT NULL,

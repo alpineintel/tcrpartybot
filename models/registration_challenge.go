@@ -36,14 +36,15 @@ func CreateRegistrationChallenge(account *Account, question *RegistrationQuestio
 		RegistrationQuestionID: question.ID,
 	}
 
-	result := db.MustExec(`
+	var id int64
+	err := db.QueryRow(`
 		INSERT INTO registration_challenges (
 			account_id,
 			registration_question_id
 		) VALUES($1, $2)
-	`, account.ID, question.ID, time.Now())
+		RETURNING id
+	`, account.ID, question.ID).Scan(&id)
 
-	id, err := result.LastInsertId()
 	if err != nil {
 		return nil, err
 	}

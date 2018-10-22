@@ -20,16 +20,17 @@ type Account struct {
 func CreateAccount(account *Account) error {
 	db := GetDBSession()
 
-	result := db.MustExec(`
+	var id int64
+	err := db.QueryRow(`
 		INSERT INTO accounts (
 			twitter_handle,
 			twitter_id,
 			eth_address,
 			eth_private_key
 		) VALUES($1, $2, $3, $4)
-	`, account.TwitterHandle, account.TwitterID, account.ETHAddress, account.ETHPrivateKey)
+		RETURNING id
+	`, account.TwitterHandle, account.TwitterID, account.ETHAddress, account.ETHPrivateKey).Scan(&id)
 
-	id, err := result.LastInsertId()
 	if err != nil {
 		return err
 	}

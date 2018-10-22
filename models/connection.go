@@ -2,7 +2,7 @@ package models
 
 import (
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq"
 	"log"
 	"os"
 	"time"
@@ -20,7 +20,7 @@ func GetDBSession() *sqlx.DB {
 		return session
 	}
 
-	session, err := sqlx.Connect("sqlite3", os.Getenv("DATABASE_URI"))
+	session, err := sqlx.Connect("postgres", os.Getenv("DATABASE_URI"))
 
 	if err != nil {
 		log.Fatal("Could not connect to specified database")

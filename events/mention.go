@@ -65,6 +65,7 @@ func processRegistration(event *Event, errChan chan<- error) {
 
 		if err != nil {
 			errChan <- err
+			return
 		}
 	}
 

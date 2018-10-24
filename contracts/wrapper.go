@@ -1,21 +1,23 @@
 package contracts
 
 import (
-	"context"
-	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"os"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 var session *ethclient.Client
+
+const (
+	// TokenDecimals is the number you can multiply/divide by in order to
+	// arrive at a human readable TCRP balance
+	TokenDecimals = 10 ^ 15
+)
 
 func getClientSession() (*ethclient.Client, error) {
 	if session != nil {
@@ -58,35 +60,10 @@ func MintTokens(address string, amount int64) (*types.Transaction, error) {
 		return nil, err
 	}
 
-	// Get private key
-	privateKey, err := crypto.HexToECDSA(os.Getenv("MASTER_PRIVATE_KEY"))
+	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
 	if err != nil {
 		return nil, err
 	}
-
-	// Get public key
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, errors.New("Could not convert public key to ECDSA")
-	}
-
-	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		return nil, err
-	}
-
-	gasPrice, err := client.SuggestGasPrice(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	auth := bind.NewKeyedTransactor(privateKey)
-	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)
-	auth.GasLimit = uint64(500000)
-	auth.GasPrice = gasPrice
 
 	contractAddress := common.HexToAddress(os.Getenv("TOKEN_ADDRESS"))
 	token, err := NewTCRPartyPoints(contractAddress, client)
@@ -97,7 +74,44 @@ func MintTokens(address string, amount int64) (*types.Transaction, error) {
 	txAddress := common.HexToAddress(address)
 	txAmount := big.NewInt(amount)
 
-	tx, err := token.Mint(auth, txAddress, txAmount)
+	tx, err := token.Mint(txOpts, txAddress, txAmount)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+// Apply creates a new listing application on the TCR for the given twitter
+// handle
+func Apply(privateKey string, amount int64, twitterHandle string) (*types.Transaction, error) {
+	client, err := getClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	txOpts, err := setupTransactionOpts(privateKey, 500000)
+	if err != nil {
+		return nil, err
+	}
+
+	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	registry, err := NewRegistry(contractAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate a listing hash
+	listingHash := make([]byte, 32)
+	_, err = rand.Read(listingHash)
+	if err != nil {
+		return nil, err
+	}
+
+	var txListingHash [32]byte
+	copy(txListingHash[:], listingHash[0:4])
+	txAmount := big.NewInt(amount)
+	tx, err := registry.Apply(txOpts, txListingHash, txAmount, twitterHandle)
 	if err != nil {
 		return nil, err
 	}

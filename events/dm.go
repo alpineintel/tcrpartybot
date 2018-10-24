@@ -8,6 +8,7 @@ import (
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -93,27 +94,56 @@ func processDM(event *Event, errChan chan<- error) {
 		return
 	}
 
-	// Are they just doing general stuff?
+	sendDM := func(message string) {
+		err := twitter.SendDM(account.TwitterID, message)
+		if err != nil {
+			errChan <- err
+		}
+	}
+
+	// If they're already registered they're trying to send some kind of
+	// command to the bot
 	if account.PassedRegistrationChallengeAt != nil {
-		// They're already registered, trying to send some kind of command to
-		// the bot
-		var msg string
-		switch event.Message {
+		// Split up the message into a command
+		argv := strings.Split(event.Message, " ")
+
+		switch argv[0] {
 		case "balance":
 			balance, err := contracts.GetTokenBalance(account.ETHAddress)
+			humanBalance := balance / contracts.TokenDecimals
+			if err != nil {
+				errChan <- err
+				return
+			}
+			sendDM(fmt.Sprintf("Your balance is %d TCRP", humanBalance))
+		case "nominate":
+			if len(argv) != 2 {
+				sendDM("Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'")
+				return
+			}
+
+			balance, err := contracts.GetTokenBalance(account.ETHAddress)
+			humanBalance := balance / contracts.TokenDecimals
 			if err != nil {
 				errChan <- err
 				return
 			}
 
-			msg = fmt.Sprintf("Your balance is %d TCRP", (balance / 1000000000000000))
-		default:
-			msg = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
-		}
+			if humanBalance < 500 {
+				sendDM("Drat, looks like you don't have enough TCRP to nominate to the party")
+				return
+			}
 
-		err := twitter.SendDM(account.TwitterID, msg)
-		if err != nil {
-			errChan <- err
+			tx, err := contracts.Apply(account.ETHPrivateKey, 500, argv[1])
+			if err != nil {
+				errChan <- err
+				sendDM("There was an error trying to submit your nomination. The admins have been notified!")
+				return
+			}
+			msg := fmt.Sprintf("We've submitted your nomination to the registry (tx: %s) Keep an eye on @TCRPartyVIP for updates.", tx.Hash().Hex())
+			sendDM(msg)
+		default:
+			sendDM("🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token.")
 		}
 		return
 	}

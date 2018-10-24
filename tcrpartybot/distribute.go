@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	initialDistributionAmount = 1500000000000000000
+	initialDistributionAmount = 1500*10 ^ 15
 )
 
 func distributeTokens(errChan chan<- error) {

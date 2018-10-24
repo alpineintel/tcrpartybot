@@ -1,7 +1,7 @@
 package twitter
 
 import (
-	"github.com/dghubble/go-twitter/twitter"
+	"github.com/stevenleeg/go-twitter/twitter"
 	"log"
 	"os"
 	"strconv"

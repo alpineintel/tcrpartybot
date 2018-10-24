@@ -1,9 +1,9 @@
 package twitter
 
 import (
-	"github.com/dghubble/go-twitter/twitter"
 	"github.com/dghubble/oauth1"
 	twitterOAuth "github.com/dghubble/oauth1/twitter"
+	"github.com/stevenleeg/go-twitter/twitter"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"log"
 	"os"

@@ -2,7 +2,7 @@ package events
 
 import (
 	"fmt"
-	goTwitter "github.com/dghubble/go-twitter/twitter"
+	goTwitter "github.com/stevenleeg/go-twitter/twitter"
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
@@ -97,7 +97,6 @@ func processDM(event *Event, errChan chan<- error) {
 	if account.PassedRegistrationChallengeAt != nil {
 		// They're already registered, trying to send some kind of command to
 		// the bot
-
 		var msg string
 		switch event.Message {
 		case "balance":
@@ -107,7 +106,7 @@ func processDM(event *Event, errChan chan<- error) {
 				return
 			}
 
-			msg = fmt.Sprintf("Your balance is %d TCRP", balance)
+			msg = fmt.Sprintf("Your balance is %d TCRP", (balance / 1000000000000000))
 		default:
 			msg = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
 		}

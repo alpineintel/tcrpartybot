@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"github.com/jmoiron/sqlx"
 	"time"
 )
 
@@ -37,6 +38,14 @@ func CreateAccount(account *Account) error {
 
 	account.ID = id
 	return nil
+}
+
+// AllAccounts returns a list of all accounts currently in the database
+func AllAccounts() (*sqlx.Rows, error) {
+	db := GetDBSession()
+	rows, err := db.Queryx("SELECT * FROM accounts")
+
+	return rows, err
 }
 
 // FindAccountByHandle searches for a given account based on its handle or

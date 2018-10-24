@@ -23,89 +23,9 @@ const (
 	auth-vip                               - Begins auth bot auth flow
 	auth-party                             - Begins retweet bot auth flow
 	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot
-	create-webhook                         - Creates a webhook for listening on DMs`
+	create-webhook                         - Creates a webhook for listening on DMs
+	distribute                             - Distributes tokens to all pre-registered accounts`
 )
-
-/*
-* polls: [from blockchain]
-*	active challenges
-* accounts:
-*	twitter_handle
-*	eth_address
-*	private_key [not on blockchain]
-*
- */
-
-type TCRContract interface {
-	Apply(applicant string, nominee string, amount uint) (string, error)
-	Vote(voter string, nominee string, accept bool) error
-	Challenge(challengee string, challenger string) error
-	GetExpiry(nominee string) (time.Time, error)
-}
-
-func logErrors(errChan <-chan error) {
-	for err := range errChan {
-		log.Printf("\n%s", err)
-	}
-}
-
-func authenticateHandle(handle string, errChan chan<- error) {
-	request := &twitter.OAuthRequest{
-		Handle: handle,
-	}
-
-	url, err := request.GetOAuthURL()
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	fmt.Printf("Go to this URL to generate an access token:\n%s", url)
-	fmt.Print("\nEnter PIN: ")
-
-	_, err = fmt.Scanf("%s", &request.PIN)
-	if err != nil {
-		log.Println("Error receiving PIN")
-		errChan <- err
-		return
-	}
-
-	err = request.ReceivePIN()
-	if err != nil {
-		log.Println("Error fetching token")
-		errChan <- err
-		return
-	}
-
-	log.Println("Access token saved!")
-}
-
-func createWebhook(errChan chan<- error) {
-	webhookID, err := models.GetKey("webhookID")
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	// If we don't already have a webhook ID we should create it
-	if webhookID == "" {
-		id, err := twitter.CreateWebhook()
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		log.Printf("Webhook %s created successfully", id)
-		models.SetKey("webhookID", id)
-	}
-
-	// And subscribe to TCRPartyVIP's DMs
-	if err := twitter.CreateSubscription(); err != nil {
-		errChan <- err
-		return
-	}
-	log.Printf("Subscription created successfully")
-}
 
 func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 	fmt.Print(HelpString)
@@ -185,6 +105,8 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 				Time:         time.Now(),
 			}
 			break
+		case "distribute":
+			distributeTokens(errChan)
 		}
 	}
 }

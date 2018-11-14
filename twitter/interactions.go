@@ -63,6 +63,20 @@ func CreateWebhook() (string, error) {
 	return webhook.ID, nil
 }
 
+func ListWebhooks() ([]twitter.AccountActivityWebhook, error) {
+	client, _, err := GetClientFromHandle(VIPBotHandle)
+	if err != nil {
+		return nil, err
+	}
+
+	params := &twitter.AccountActivityListWebhooksParams{
+		EnvName: os.Getenv("TWITTER_ENV"),
+	}
+	webhooks, _, err := client.AccountActivity.ListWebhooks(params)
+
+	return webhooks, nil
+}
+
 // CreateSubscription subscribes the current webhook to the given user
 func CreateSubscription() error {
 	client, _, err := GetClientFromHandle(VIPBotHandle)

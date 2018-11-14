@@ -1,10 +1,12 @@
 package contracts
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"math/rand"
 	"os"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -108,13 +110,58 @@ func Apply(privateKey string, amount int64, twitterHandle string) (*types.Transa
 		return nil, err
 	}
 
+	// Convert that hash into the type it needs to be
 	var txListingHash [32]byte
 	copy(txListingHash[:], listingHash[0:4])
 	txAmount := big.NewInt(amount)
 	tx, err := registry.Apply(txOpts, txListingHash, txAmount, twitterHandle)
+
+	return tx, nil
+}
+
+// DeployWallet creates a new instance of the multisig wallet and returns the
+// resulting transaction
+func DeployWallet() (*types.Transaction, error) {
+	client, err := getClientSession()
 	if err != nil {
 		return nil, err
 	}
 
-	return tx, nil
+	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 5000000)
+	if err != nil {
+		return nil, err
+	}
+
+	contractAddress := common.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS"))
+	factory, err := NewMultiSigWalletFactory(contractAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	botKey, err := getPublicAddress(os.Getenv("MASTER_PRIVATE_KEY"))
+	if err != nil {
+		return nil, err
+	}
+
+	owners := []common.Address{botKey}
+	tx, err := factory.Create(txOpts, owners, big.NewInt(1))
+
+	return tx, err
+}
+
+// AwaitTransactionConfirmation will block on a transaction until it is
+// confirmed onto the network. It will return with a transaction receipt or an
+// error (ie in the case of a timeout)
+func AwaitTransactionConfirmation(txHash common.Hash) (*types.Receipt, error) {
+	client, err := getClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	// This request should expire after 3 minutes
+	emptyCtx := context.Background()
+	ctx, cancel := context.WithDeadline(emptyCtx, time.Now().Add(time.Minute*3))
+	defer cancel()
+
+	return client.TransactionReceipt(ctx, txHash)
 }

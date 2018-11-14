@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
@@ -69,4 +70,14 @@ func createWebhook(errChan chan<- error) {
 		return
 	}
 	log.Printf("Subscription created successfully")
+}
+
+func deployWallet(errChan chan<- error) {
+	tx, err := contracts.DeployWallet()
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	log.Printf("TX: %s", tx.Hash().String())
 }

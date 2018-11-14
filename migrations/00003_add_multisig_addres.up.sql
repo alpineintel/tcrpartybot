@@ -1,0 +1,1 @@
+ALTER TABLE accounts ADD COLUMN multisig_address CHARACTER VARYING;

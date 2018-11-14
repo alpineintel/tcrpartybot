@@ -9,13 +9,14 @@ import (
 // Account represents a twitter account that interacts with our bot. They may
 // or may not be a member on the TCR or a token holder.
 type Account struct {
-	ID                            int64      `db:"id"`
-	TwitterID                     int64      `db:"twitter_id"`
-	TwitterHandle                 string     `db:"twitter_handle"`
-	ETHAddress                    string     `db:"eth_address"`
-	ETHPrivateKey                 string     `db:"eth_private_key"`
-	PassedRegistrationChallengeAt *time.Time `db:"passed_registration_challenge_at"`
-	CreatedAt                     *time.Time `db:"created_at"`
+	ID                            int64           `db:"id"`
+	TwitterID                     int64           `db:"twitter_id"`
+	TwitterHandle                 string          `db:"twitter_handle"`
+	ETHAddress                    string          `db:"eth_address"`
+	ETHPrivateKey                 string          `db:"eth_private_key"`
+	MultisigAddress               *sql.NullString `db:"multisig_address"`
+	PassedRegistrationChallengeAt *time.Time      `db:"passed_registration_challenge_at"`
+	CreatedAt                     *time.Time      `db:"created_at"`
 }
 
 func CreateAccount(account *Account) error {

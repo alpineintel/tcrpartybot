@@ -2,14 +2,32 @@ package events
 
 import (
 	"fmt"
-	goTwitter "github.com/stevenleeg/go-twitter/twitter"
-	"gitlab.com/alpinefresh/tcrpartybot/contracts"
-	"gitlab.com/alpinefresh/tcrpartybot/models"
-	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	goTwitter "github.com/stevenleeg/go-twitter/twitter"
+
+	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
+	"gitlab.com/alpinefresh/tcrpartybot/twitter"
+)
+
+const (
+	nominateErrorMsg             = "Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'"
+	nominateInsufficientFundsMsg = "Drat, looks like you don't have enough TCRP to nominate to the party"
+	nominateSubmissionErrorMsg   = "There was an error trying to submit your nomination. The admins have been notified!"
+	nominateSuccessMsg           = "We've submitted your nomination to the registry (tx: %s) Keep an eye on @TCRPartyVIP for updates."
+
+	balanceMsg                  = "Your balance is %d TCRP"
+	awaitingPartyBeginMsg       = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
+	invalidChallengeResponseMsg = "🙅‍♀️ That's not right! %s"
+	nextChallengeMsg            = "Nice, that's it! Here's another one for you: %s"
+	preregistrationSuccessMsg   = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
 )
 
 // RegistrationEventData collects the required data for keeping track of
@@ -115,10 +133,10 @@ func processDM(event *Event, errChan chan<- error) {
 				errChan <- err
 				return
 			}
-			sendDM(fmt.Sprintf("Your balance is %d TCRP", humanBalance))
+			sendDM(fmt.Sprintf(balanceMsg, humanBalance))
 		case "nominate":
 			if len(argv) != 2 {
-				sendDM("Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'")
+				sendDM(nominateErrorMsg)
 				return
 			}
 
@@ -130,20 +148,20 @@ func processDM(event *Event, errChan chan<- error) {
 			}
 
 			if humanBalance < 500 {
-				sendDM("Drat, looks like you don't have enough TCRP to nominate to the party")
+				sendDM(nominateInsufficientFundsMsg)
 				return
 			}
 
 			tx, err := contracts.Apply(account.ETHPrivateKey, 500, argv[1])
 			if err != nil {
 				errChan <- err
-				sendDM("There was an error trying to submit your nomination. The admins have been notified!")
+				sendDM(nominateSubmissionErrorMsg)
 				return
 			}
-			msg := fmt.Sprintf("We've submitted your nomination to the registry (tx: %s) Keep an eye on @TCRPartyVIP for updates.", tx.Hash().Hex())
+			msg := fmt.Sprintf(nominateSuccessMsg, tx.Hash().Hex())
 			sendDM(msg)
 		default:
-			sendDM("🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token.")
+			sendDM(awaitingPartyBeginMsg)
 		}
 		return
 	}
@@ -169,7 +187,7 @@ func processDM(event *Event, errChan chan<- error) {
 func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 	// Check to see if they've responded with the correct answer
 	if data.Event.Message != data.Challenge.Answer {
-		response := fmt.Sprintf("🙅‍♀️ That's not right! %s", data.Challenge.Question)
+		response := fmt.Sprintf(invalidChallengeResponseMsg, data.Challenge.Question)
 		err := twitter.SendDM(data.Account.TwitterID, response)
 		if err != nil {
 			errChan <- err
@@ -200,10 +218,13 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 			return
 		}
 
-		err = twitter.SendDM(data.Account.TwitterID, "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈.")
+		err = twitter.SendDM(data.Account.TwitterID, preregistrationSuccessMsg)
 		if err != nil {
 			errChan <- err
 		}
+
+		// Let's also register a new multisig wallet for them
+		go provisionWallet(data.Account, errChan)
 		return
 	}
 
@@ -220,9 +241,42 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 		return
 	}
 
-	response := fmt.Sprintf("Nice, that's it! Here's another one for you: %s", activeChallenge.Question)
+	response := fmt.Sprintf(nextChallengeMsg, activeChallenge.Question)
 	err = twitter.SendDM(data.Account.TwitterID, response)
 	if err != nil {
 		errChan <- err
+	}
+}
+
+func provisionWallet(account *models.Account, errChan chan<- error) {
+	tx, err := contracts.DeployWallet()
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	receipt, err := contracts.AwaitTransactionConfirmation(tx.Hash())
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	// Make sure the wallet creation actually succeeded
+	if receipt.Status == ethTypes.ReceiptStatusFailed {
+		errChan <- fmt.Errorf("Could not create multisig wallet for account %d", account.ID)
+		return
+	}
+
+	// Find the address of the wallet
+	var walletAddress ethCommon.Address
+	for _, event := range receipt.Logs {
+		if event.Address != ethCommon.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS")) {
+			continue
+		}
+
+		// TODO: Change this to actually filter the logs and find the proper
+		// event. Perhaps see https://goethereumbook.org/event-read-erc20/
+		walletAddress = ethCommon.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS"))
+		fmt.Printf("Found a wallet! %s", walletAddress)
 	}
 }

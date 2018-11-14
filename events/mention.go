@@ -22,7 +22,10 @@ func processMention(event *Event, errChan chan<- error) {
 func processRegistration(event *Event, errChan chan<- error) {
 	// If they already have an account we don't need to continue
 	account, err := models.FindAccountByID(event.SourceID)
-	if account != nil || err != nil {
+	if account != nil {
+		return
+	} else if err != nil {
+		errChan <- err
 		return
 	}
 

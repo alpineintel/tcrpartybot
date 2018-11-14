@@ -7,8 +7,25 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+func getPublicAddress(privateKeyString string) (common.Address, error) {
+	privateKey, err := crypto.HexToECDSA(privateKeyString)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return common.Address{}, errors.New("Could not convert public key to ECDSA")
+	}
+
+	address := crypto.PubkeyToAddress(*publicKeyECDSA)
+	return address, nil
+}
 
 func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactOpts, error) {
 	client, err := getClientSession()

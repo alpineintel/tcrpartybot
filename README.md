@@ -13,9 +13,16 @@ PARTY_BOT_HANDLE=tcrpartybot
 DATABASE_URI=data.db
 TWITTER_CONSUMER_KEY=
 TWITTER_CONSUMER_SECRET=
+TWITTER_ENV=
 
 BASE_URL=https://bbd828f3.ngrok.io
 SERVER_HOST=0.0.0.0:8080
+
+ETH_NODE_URI=http://localhost:8545
+TOKEN_ADDRESS=
+WALLET_FACTORY_ADDRESS=
+TCR_ADDRESS=
+MASTER_PRIVATE_KEY= # Note that this should omit the opening 0x of the private key
 ```
 
 ## Setup

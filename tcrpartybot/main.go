@@ -60,6 +60,11 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 		case "create-webhook":
 			createWebhook(errChan)
 			break
+
+		case "deploy-wallet":
+			deployWallet(errChan)
+			break
+
 		case "send-dm":
 			if argc < 2 {
 				errChan <- errors.New("Invalid number of arguments for command send-dm")

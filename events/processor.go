@@ -7,14 +7,14 @@ import (
 type EventType string
 
 const (
-	EventTypeMention       EventType = "EventTypeMention"
-	EventTypeDM            EventType = "EventTypeDM"
-	EventTypeVote          EventType = "EventTypeVote"
-	EventTypePollCompleted EventType = "EventTypePollCompleted"
-	EventTypeFollow        EventType = "EventTypeFollow"
+	TwitterEventTypeMention       EventType = "EventTypeMention"
+	TwitterEventTypeDM            EventType = "EventTypeDM"
+	TwitterEventTypeVote          EventType = "EventTypeVote"
+	TwitterEventTypePollCompleted EventType = "EventTypePollCompleted"
+	TwitterEventTypeFollow        EventType = "EventTypeFollow"
 )
 
-type Event struct {
+type TwitterEvent struct {
 	EventType    EventType // type of event
 	Time         time.Time // timestamp
 	SourceHandle string    // twitter handle sending
@@ -22,19 +22,19 @@ type Event struct {
 	Message      string    // whole message
 }
 
-func ProcessEvents(eventChan <-chan *Event, errorChan chan<- error) {
+func ProcessEvents(eventChan <-chan *TwitterEvent, errorChan chan<- error) {
 	for {
 		event := <-eventChan
 		switch event.EventType {
-		case EventTypeMention:
+		case TwitterEventTypeMention:
 			processMention(event, errorChan)
 			break
 
-		case EventTypeFollow:
+		case TwitterEventTypeFollow:
 			processFollow(event, errorChan)
 			break
 
-		case EventTypeDM:
+		case TwitterEventTypeDM:
 			processDM(event, errorChan)
 			break
 		}

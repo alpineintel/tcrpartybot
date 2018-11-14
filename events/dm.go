@@ -33,7 +33,7 @@ const (
 // RegistrationEventData collects the required data for keeping track of
 // the user registration flow into a struct
 type RegistrationEventData struct {
-	Event     *Event
+	Event     *TwitterEvent
 	Challenge *models.RegistrationChallengeRegistrationQuestion
 	Account   *models.Account
 }
@@ -41,7 +41,7 @@ type RegistrationEventData struct {
 // ListenForTwitterDM is a blocking function which polls the Twitter API for
 // new direct messages and sends them off to the eventChan for further
 // processing as they are received.
-func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- error) {
+func ListenForTwitterDM(handle string, eventChan chan<- *TwitterEvent, errChan chan<- error) {
 	client, token, err := twitter.GetClientFromHandle(handle)
 	if err != nil {
 		log.Println("Could not establish client listening to DMs")
@@ -103,7 +103,7 @@ func ListenForTwitterDM(handle string, eventChan chan<- *Event, errChan chan<- e
 	}
 }
 
-func processDM(event *Event, errChan chan<- error) {
+func processDM(event *TwitterEvent, errChan chan<- error) {
 	log.Printf("Received DM from %s: %s", event.SourceHandle, event.Message)
 
 	// If they don't have an acccount, do nothing.

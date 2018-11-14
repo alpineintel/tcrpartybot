@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func processMention(event *Event, errChan chan<- error) {
+func processMention(event *TwitterEvent, errChan chan<- error) {
 	log.Printf("\nReceived mention from %s [%d]: %s", event.SourceHandle, event.SourceID, event.Message)
 	// Filter based on let's party
 	lower := strings.ToLower(event.Message)
@@ -19,7 +19,7 @@ func processMention(event *Event, errChan chan<- error) {
 	}
 }
 
-func processRegistration(event *Event, errChan chan<- error) {
+func processRegistration(event *TwitterEvent, errChan chan<- error) {
 	// If they already have an account we don't need to continue
 	account, err := models.FindAccountByID(event.SourceID)
 	if account != nil {

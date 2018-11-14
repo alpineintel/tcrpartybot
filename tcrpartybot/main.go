@@ -27,7 +27,7 @@ const (
 	distribute                             - Distributes tokens to all pre-registered accounts`
 )
 
-func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
+func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 	fmt.Print(HelpString)
 
 	for {
@@ -89,10 +89,10 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 				continue
 			}
 
-			eventChan <- &events.Event{
+			eventChan <- &events.TwitterEvent{
 				SourceHandle: args[0],
 				Message:      strings.Join(args[1:], " "),
-				EventType:    events.EventTypeDM,
+				EventType:    events.TwitterEventTypeDM,
 				Time:         time.Now(),
 			}
 			break
@@ -103,10 +103,10 @@ func beginRepl(eventChan chan<- *events.Event, errChan chan<- error) {
 				continue
 			}
 
-			eventChan <- &events.Event{
+			eventChan <- &events.TwitterEvent{
 				SourceHandle: args[0],
 				Message:      strings.Join(args[1:], " "),
-				EventType:    events.EventTypeMention,
+				EventType:    events.TwitterEventTypeMention,
 				Time:         time.Now(),
 			}
 			break
@@ -122,7 +122,7 @@ func main() {
 		log.Fatal("Could not open .env file")
 	}
 
-	eventChan := make(chan *events.Event)
+	eventChan := make(chan *events.TwitterEvent)
 	errChan := make(chan error)
 
 	models.GetDBSession()

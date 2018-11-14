@@ -54,7 +54,7 @@ type incomingWebhook struct {
 // Server holds relevant data for running an API server
 type Server struct {
 	errChan    chan<- error
-	eventsChan chan<- *events.Event
+	eventsChan chan<- *events.TwitterEvent
 }
 
 func (server *Server) processDMs(dms []incomingDM) {
@@ -84,8 +84,8 @@ func (server *Server) processDMs(dms []incomingDM) {
 			continue
 		}
 
-		server.eventsChan <- &events.Event{
-			EventType:    events.EventTypeDM,
+		server.eventsChan <- &events.TwitterEvent{
+			EventType:    events.TwitterEventTypeDM,
 			Time:         time.Now(),
 			SourceHandle: account.TwitterHandle,
 			SourceID:     account.TwitterID,
@@ -96,8 +96,8 @@ func (server *Server) processDMs(dms []incomingDM) {
 
 func (server *Server) processMentions(tweets []incomingTweet) {
 	for _, tweet := range tweets {
-		server.eventsChan <- &events.Event{
-			EventType:    events.EventTypeMention,
+		server.eventsChan <- &events.TwitterEvent{
+			EventType:    events.TwitterEventTypeMention,
 			Time:         time.Now(),
 			SourceHandle: tweet.User.ScreenName,
 			SourceID:     tweet.User.ID,
@@ -124,8 +124,8 @@ func (server *Server) processFollows(follows []incomingFollow) {
 			continue
 		}
 
-		server.eventsChan <- &events.Event{
-			EventType:    events.EventTypeFollow,
+		server.eventsChan <- &events.TwitterEvent{
+			EventType:    events.TwitterEventTypeFollow,
 			Time:         time.Now(),
 			SourceHandle: follow.Source.ScreenName,
 			SourceID:     id,
@@ -179,7 +179,7 @@ func (server *Server) handleTwitterWebhook(w http.ResponseWriter, r *http.Reques
 }
 
 // StartServer spins up a webserver for the API
-func StartServer(eventsChan chan<- *events.Event, errChan chan<- error) *Server {
+func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *Server {
 	server := &Server{
 		eventsChan: eventsChan,
 		errChan:    errChan,

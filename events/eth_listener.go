@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -34,15 +36,33 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 	walletFactoryAddress := common.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS"))
 
 	// Begin the watching loop
-	blockCursor := big.NewInt(40)
 	for {
+		time.Sleep(1 * time.Second)
+
+		// Get the previously synced block number
+		val, err := models.GetKey(models.LatestSyncedBlockKey)
+		if err != nil {
+			errChan <- err
+			continue
+		} else if val == "" {
+			val = os.Getenv("START_BLOCK")
+		}
+
+		blockCursor := new(big.Int)
+		blockCursor, ok := blockCursor.SetString(val, 10)
+		if !ok {
+			errChan <- errors.New("Could not parse previous block cursor")
+			continue
+		}
+
+		// Get the latest block number on the chain
 		latestBlock, err := client.HeaderByNumber(context.Background(), nil)
 		if err != nil {
 			errChan <- err
 		}
 
+		// Do we need to sync?
 		if latestBlock.Number.Cmp(blockCursor) == 0 {
-			time.Sleep(1 * time.Second)
 			continue
 		}
 
@@ -67,7 +87,9 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 			fmt.Printf("Wallet instantiated! It's at %s\n", event.Instantiation.Hex())
 		}
 
-		blockCursor = latestBlock.Number
-		time.Sleep(1 * time.Second)
+		err = models.SetKey(models.LatestSyncedBlockKey, latestBlock.Number.String())
+		if err != nil {
+			errChan <- err
+		}
 	}
 }

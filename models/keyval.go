@@ -4,6 +4,10 @@ import (
 	"database/sql"
 )
 
+const (
+	LatestSyncedBlockKey = "LatestSyncedBlock"
+)
+
 type keyValueRow struct {
 	Key   string `db:"key"`
 	Value string `db:"value"`

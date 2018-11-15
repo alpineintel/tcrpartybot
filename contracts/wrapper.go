@@ -21,7 +21,8 @@ const (
 	TokenDecimals = 10 ^ 15
 )
 
-func getClientSession() (*ethclient.Client, error) {
+// GetClientSession returns an ethereum client
+func GetClientSession() (*ethclient.Client, error) {
 	if session != nil {
 		return session, nil
 	}
@@ -34,8 +35,9 @@ func getClientSession() (*ethclient.Client, error) {
 	return session, nil
 }
 
+// GetTokenBalance returns the balance (in the smallest delimiter) of a given wallet address
 func GetTokenBalance(address string) (int64, error) {
-	client, err := getClientSession()
+	client, err := GetClientSession()
 	if err != nil {
 		return 0, err
 	}
@@ -57,7 +59,7 @@ func GetTokenBalance(address string) (int64, error) {
 
 // MintTokens assigns new tokens to the given ETH address
 func MintTokens(address string, amount int64) (*types.Transaction, error) {
-	client, err := getClientSession()
+	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +89,7 @@ func MintTokens(address string, amount int64) (*types.Transaction, error) {
 // Apply creates a new listing application on the TCR for the given twitter
 // handle
 func Apply(privateKey string, amount int64, twitterHandle string) (*types.Transaction, error) {
-	client, err := getClientSession()
+	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +124,7 @@ func Apply(privateKey string, amount int64, twitterHandle string) (*types.Transa
 // DeployWallet creates a new instance of the multisig wallet and returns the
 // resulting transaction
 func DeployWallet() (*types.Transaction, error) {
-	client, err := getClientSession()
+	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +155,7 @@ func DeployWallet() (*types.Transaction, error) {
 // confirmed onto the network. It will return with a transaction receipt or an
 // error (ie in the case of a timeout)
 func AwaitTransactionConfirmation(txHash common.Hash) (*types.Receipt, error) {
-	client, err := getClientSession()
+	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
 	}

@@ -122,7 +122,8 @@ func main() {
 		log.Fatal("Could not open .env file")
 	}
 
-	eventChan := make(chan *events.TwitterEvent)
+	twitterEventChan := make(chan *events.TwitterEvent)
+	ethEventChan := make(chan *events.ETHEvent)
 	errChan := make(chan error)
 
 	models.GetDBSession()
@@ -137,9 +138,11 @@ func main() {
 		log.Printf("Credentials for vip bot not found. Please authenticate!")
 	}
 
-	go events.ProcessEvents(eventChan, errChan)
-	go api.StartServer(eventChan, errChan)
+	go events.ProcessTwitterEvents(twitterEventChan, errChan)
+	go events.ProcessETHEvents(ethEventChan, errChan)
+	go events.StartETHListener(ethEventChan, errChan)
+	go api.StartServer(twitterEventChan, errChan)
 	go logErrors(errChan)
 
-	beginRepl(eventChan, errChan)
+	beginRepl(twitterEventChan, errChan)
 }

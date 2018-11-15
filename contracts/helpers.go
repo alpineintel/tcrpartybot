@@ -28,7 +28,7 @@ func getPublicAddress(privateKeyString string) (common.Address, error) {
 }
 
 func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactOpts, error) {
-	client, err := getClientSession()
+	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
 	}

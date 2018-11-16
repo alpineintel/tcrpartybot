@@ -249,7 +249,7 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 }
 
 func provisionWallet(account *models.Account, errChan chan<- error) {
-	tx, err := contracts.DeployWallet()
+	tx, _, err := contracts.DeployWallet()
 	if err != nil {
 		errChan <- err
 		return

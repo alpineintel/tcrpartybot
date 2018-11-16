@@ -122,33 +122,35 @@ func Apply(privateKey string, amount int64, twitterHandle string) (*types.Transa
 }
 
 // DeployWallet creates a new instance of the multisig wallet and returns the
-// resulting transaction
-func DeployWallet() (*types.Transaction, error) {
+// resulting transaction and an identifier which will be broadcast in the
+// ContractInstantiation event on the wallet factory contract
+func DeployWallet() (*types.Transaction, int64, error) {
 	client, err := GetClientSession()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 5000000)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	contractAddress := common.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS"))
 	factory, err := NewMultiSigWalletFactory(contractAddress, client)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	botKey, err := getPublicAddress(os.Getenv("MASTER_PRIVATE_KEY"))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
+	identifier := rand.Int63()
 	owners := []common.Address{botKey}
-	tx, err := factory.Create(txOpts, owners, big.NewInt(1))
+	tx, err := factory.Create(txOpts, owners, big.NewInt(1), big.NewInt(identifier))
 
-	return tx, err
+	return tx, identifier, err
 }
 
 // AwaitTransactionConfirmation will block on a transaction until it is

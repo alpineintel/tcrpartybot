@@ -16,7 +16,7 @@ import (
 )
 
 // MultiSigWalletFactoryABI is the input ABI used to generate the binding from.
-const MultiSigWalletFactoryABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"isInstantiation\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"instantiations\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"creator\",\"type\":\"address\"}],\"name\":\"getInstantiationCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"instantiation\",\"type\":\"address\"}],\"name\":\"ContractInstantiation\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owners\",\"type\":\"address[]\"},{\"name\":\"_required\",\"type\":\"uint256\"}],\"name\":\"create\",\"outputs\":[{\"name\":\"wallet\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const MultiSigWalletFactoryABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"isInstantiation\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"instantiations\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"creator\",\"type\":\"address\"}],\"name\":\"getInstantiationCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"instantiation\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"identifier\",\"type\":\"uint256\"}],\"name\":\"ContractInstantiation\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owners\",\"type\":\"address[]\"},{\"name\":\"_required\",\"type\":\"uint256\"},{\"name\":\"identifier\",\"type\":\"uint256\"}],\"name\":\"create\",\"outputs\":[{\"name\":\"wallet\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 // MultiSigWalletFactory is an auto generated Go binding around an Ethereum contract.
 type MultiSigWalletFactory struct {
@@ -238,25 +238,25 @@ func (_MultiSigWalletFactory *MultiSigWalletFactoryCallerSession) IsInstantiatio
 	return _MultiSigWalletFactory.Contract.IsInstantiation(&_MultiSigWalletFactory.CallOpts, arg0)
 }
 
-// Create is a paid mutator transaction binding the contract method 0xf8f73808.
+// Create is a paid mutator transaction binding the contract method 0x53d9d910.
 //
-// Solidity: function create(_owners address[], _required uint256) returns(wallet address)
-func (_MultiSigWalletFactory *MultiSigWalletFactoryTransactor) Create(opts *bind.TransactOpts, _owners []common.Address, _required *big.Int) (*types.Transaction, error) {
-	return _MultiSigWalletFactory.contract.Transact(opts, "create", _owners, _required)
+// Solidity: function create(_owners address[], _required uint256, identifier uint256) returns(wallet address)
+func (_MultiSigWalletFactory *MultiSigWalletFactoryTransactor) Create(opts *bind.TransactOpts, _owners []common.Address, _required *big.Int, identifier *big.Int) (*types.Transaction, error) {
+	return _MultiSigWalletFactory.contract.Transact(opts, "create", _owners, _required, identifier)
 }
 
-// Create is a paid mutator transaction binding the contract method 0xf8f73808.
+// Create is a paid mutator transaction binding the contract method 0x53d9d910.
 //
-// Solidity: function create(_owners address[], _required uint256) returns(wallet address)
-func (_MultiSigWalletFactory *MultiSigWalletFactorySession) Create(_owners []common.Address, _required *big.Int) (*types.Transaction, error) {
-	return _MultiSigWalletFactory.Contract.Create(&_MultiSigWalletFactory.TransactOpts, _owners, _required)
+// Solidity: function create(_owners address[], _required uint256, identifier uint256) returns(wallet address)
+func (_MultiSigWalletFactory *MultiSigWalletFactorySession) Create(_owners []common.Address, _required *big.Int, identifier *big.Int) (*types.Transaction, error) {
+	return _MultiSigWalletFactory.Contract.Create(&_MultiSigWalletFactory.TransactOpts, _owners, _required, identifier)
 }
 
-// Create is a paid mutator transaction binding the contract method 0xf8f73808.
+// Create is a paid mutator transaction binding the contract method 0x53d9d910.
 //
-// Solidity: function create(_owners address[], _required uint256) returns(wallet address)
-func (_MultiSigWalletFactory *MultiSigWalletFactoryTransactorSession) Create(_owners []common.Address, _required *big.Int) (*types.Transaction, error) {
-	return _MultiSigWalletFactory.Contract.Create(&_MultiSigWalletFactory.TransactOpts, _owners, _required)
+// Solidity: function create(_owners address[], _required uint256, identifier uint256) returns(wallet address)
+func (_MultiSigWalletFactory *MultiSigWalletFactoryTransactorSession) Create(_owners []common.Address, _required *big.Int, identifier *big.Int) (*types.Transaction, error) {
+	return _MultiSigWalletFactory.Contract.Create(&_MultiSigWalletFactory.TransactOpts, _owners, _required, identifier)
 }
 
 // MultiSigWalletFactoryContractInstantiationIterator is returned from FilterContractInstantiation and is used to iterate over the raw logs and unpacked data for ContractInstantiation events raised by the MultiSigWalletFactory contract.
@@ -330,12 +330,13 @@ func (it *MultiSigWalletFactoryContractInstantiationIterator) Close() error {
 type MultiSigWalletFactoryContractInstantiation struct {
 	Sender        common.Address
 	Instantiation common.Address
+	Identifier    *big.Int
 	Raw           types.Log // Blockchain specific contextual infos
 }
 
-// FilterContractInstantiation is a free log retrieval operation binding the contract event 0x4fb057ad4a26ed17a57957fa69c306f11987596069b89521c511fc9a894e6161.
+// FilterContractInstantiation is a free log retrieval operation binding the contract event 0xb004d2590bf6eda75630c427abba336b8b58444d1cd8634dd89c811f5fcb5a11.
 //
-// Solidity: e ContractInstantiation(sender address, instantiation address)
+// Solidity: e ContractInstantiation(sender address, instantiation address, identifier uint256)
 func (_MultiSigWalletFactory *MultiSigWalletFactoryFilterer) FilterContractInstantiation(opts *bind.FilterOpts) (*MultiSigWalletFactoryContractInstantiationIterator, error) {
 
 	logs, sub, err := _MultiSigWalletFactory.contract.FilterLogs(opts, "ContractInstantiation")
@@ -345,9 +346,9 @@ func (_MultiSigWalletFactory *MultiSigWalletFactoryFilterer) FilterContractInsta
 	return &MultiSigWalletFactoryContractInstantiationIterator{contract: _MultiSigWalletFactory.contract, event: "ContractInstantiation", logs: logs, sub: sub}, nil
 }
 
-// WatchContractInstantiation is a free log subscription operation binding the contract event 0x4fb057ad4a26ed17a57957fa69c306f11987596069b89521c511fc9a894e6161.
+// WatchContractInstantiation is a free log subscription operation binding the contract event 0xb004d2590bf6eda75630c427abba336b8b58444d1cd8634dd89c811f5fcb5a11.
 //
-// Solidity: e ContractInstantiation(sender address, instantiation address)
+// Solidity: e ContractInstantiation(sender address, instantiation address, identifier uint256)
 func (_MultiSigWalletFactory *MultiSigWalletFactoryFilterer) WatchContractInstantiation(opts *bind.WatchOpts, sink chan<- *MultiSigWalletFactoryContractInstantiation) (event.Subscription, error) {
 
 	logs, sub, err := _MultiSigWalletFactory.contract.WatchLogs(opts, "ContractInstantiation")

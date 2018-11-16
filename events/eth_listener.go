@@ -66,6 +66,7 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 			continue
 		}
 
+		// Finally, query the ETH node for any interesting events
 		query := ethereum.FilterQuery{
 			FromBlock: blockCursor,
 			ToBlock:   latestBlock.Number,
@@ -77,14 +78,13 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 			errChan <- err
 		}
 
-		fmt.Println("\nLOGS:")
 		for _, log := range logs {
 			event := contracts.MultiSigWalletFactoryContractInstantiation{}
 			err := walletFactoryABI.Unpack(&event, "ContractInstantiation", log.Data)
 			if err != nil {
 				errChan <- err
 			}
-			fmt.Printf("Wallet instantiated! It's at %s\n", event.Instantiation.Hex())
+			fmt.Printf("Wallet %d detected at %s\n", event.Identifier, event.Instantiation.Hex())
 		}
 
 		err = models.SetKey(models.LatestSyncedBlockKey, latestBlock.Number.String())

@@ -73,11 +73,11 @@ func createWebhook(errChan chan<- error) {
 }
 
 func deployWallet(errChan chan<- error) {
-	tx, err := contracts.DeployWallet()
+	tx, identifier, err := contracts.DeployWallet()
 	if err != nil {
 		errChan <- err
 		return
 	}
 
-	log.Printf("TX: %s", tx.Hash().String())
+	log.Printf("TX: %s ID: %d", tx.Hash().String(), identifier)
 }

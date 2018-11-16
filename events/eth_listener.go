@@ -84,7 +84,21 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 			if err != nil {
 				errChan <- err
 			}
+
+			account, err := models.FindAccountByMultisigFactoryIdentifier(event.Identifier.Int64())
+			if err != nil {
+				errChan <- err
+				continue
+			} else if account == nil {
+				continue
+			}
+
 			fmt.Printf("Wallet %d detected at %s\n", event.Identifier, event.Instantiation.Hex())
+
+			err = account.SetMultisigAddress(event.Instantiation.Hex())
+			if err != nil {
+				errChan <- err
+			}
 		}
 
 		err = models.SetKey(models.LatestSyncedBlockKey, latestBlock.Number.String())

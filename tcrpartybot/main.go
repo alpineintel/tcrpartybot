@@ -10,6 +10,7 @@ import (
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -24,7 +25,8 @@ const (
 	auth-party                             - Begins retweet bot auth flow
 	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot
 	create-webhook                         - Creates a webhook for listening on DMs
-	distribute                             - Distributes tokens to all pre-registered accounts`
+	distribute                             - Distributes tokens to all pre-registered accounts
+	deploy-wallet                          - Calls the MultisigWalletFactory contract [for debugging]`
 )
 
 func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
@@ -117,6 +119,8 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Could not open .env file")

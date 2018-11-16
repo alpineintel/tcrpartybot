@@ -87,7 +87,7 @@ func processRegistration(event *TwitterEvent, errChan chan<- error) {
 		return
 	}
 
-	err = models.MarkRegistrationChallengeSent(firstChallenge.ID)
+	err = firstChallenge.MarkSent()
 	if err != nil {
 		errChan <- err
 	}

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -54,20 +55,23 @@ func CreateRegistrationChallenge(account *Account, question *RegistrationQuestio
 	return challenge, nil
 }
 
-func MarkRegistrationChallengeSent(challengeId int64) error {
+func (challenge *RegistrationChallenge) MarkSent() error {
 	db := GetDBSession()
 
 	now := time.Now()
-	_, err := db.Exec(`
+	res, err := db.Exec(`
 		UPDATE registration_challenges
-		SET sent_at = $1
+			SET sent_at = $1
 		WHERE id = $2
-	`, &now, challengeId)
+	`, &now, challenge.ID)
+	fmt.Printf("updating challenge %d", challenge.ID)
+	aff, _ := res.RowsAffected()
+	fmt.Println(aff)
 
 	return err
 }
 
-func MarkChallengeCompleted(challengeId int64) error {
+func (challenge *RegistrationChallenge) MarkCompleted() error {
 	db := GetDBSession()
 
 	now := time.Now()
@@ -75,7 +79,7 @@ func MarkChallengeCompleted(challengeId int64) error {
 		UPDATE registration_challenges
 		SET completed_at = $1
 		WHERE id = $2
-	`, &now, challengeId)
+	`, &now, challenge.ID)
 
 	return err
 }

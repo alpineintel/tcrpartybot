@@ -2,6 +2,8 @@ package models
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"time"
 )
@@ -15,6 +17,7 @@ type Account struct {
 	ETHAddress                    string          `db:"eth_address"`
 	ETHPrivateKey                 string          `db:"eth_private_key"`
 	MultisigAddress               *sql.NullString `db:"multisig_address"`
+	MultisigFactoryIdentifier     *sql.NullInt64  `db:"multisig_factory_identifier"`
 	PassedRegistrationChallengeAt *time.Time      `db:"passed_registration_challenge_at"`
 	CreatedAt                     *time.Time      `db:"created_at"`
 }
@@ -83,7 +86,24 @@ func FindAccountByID(id int64) (*Account, error) {
 	return &account, nil
 }
 
-func AccountHasCompletedChallenges(accountId int64) (bool, error) {
+// FindAccountByMultisigFactoryIdentifier searches for a given account based on
+// its factory identifier returns nil if it cannot be found
+func FindAccountByMultisigFactoryIdentifier(identifier int64) (*Account, error) {
+	db := GetDBSession()
+
+	account := Account{}
+	err := db.Get(&account, "SELECT * FROM accounts WHERE multisig_factory_identifier=$1", identifier)
+
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	return &account, nil
+}
+
+func (a *Account) HasCompletedChallenges() (bool, error) {
 	db := GetDBSession()
 
 	// A user has completed the challenge phase if there are X registration
@@ -95,7 +115,7 @@ func AccountHasCompletedChallenges(accountId int64) (bool, error) {
 		WHERE
 			account_id = $1 AND
 			completed_at IS NOT NULL
-	`, accountId)
+	`, a.ID)
 
 	if err != nil {
 		return false, err
@@ -104,15 +124,47 @@ func AccountHasCompletedChallenges(accountId int64) (bool, error) {
 	return count == RegistrationChallengeCount, nil
 }
 
-func MarkAccountRegistered(accountId int64) error {
+// Save updates the account record in the database and returns an error if it occurs
+func (a *Account) Save() error {
 	db := GetDBSession()
 
-	now := time.Now()
-	_, err := db.Exec(`
-		UPDATE accounts
-		SET passed_registration_challenge_at = $1
-		WHERE id = $2
-	`, &now, accountId)
+	_, err := db.NamedExec(`
+		UPDATE accounts SET
+			twitter_id = :twitter_id,
+			twitter_handle = :twitter_handle,
+			multisig_address = :multisig_address,
+			multisig_factory_identifier = :multisig_factory_identifier,
+			passed_registration_challenge_at = :passed_registration_challenge_at
+		WHERE id = :id
+	`, a)
 
 	return err
+}
+
+// MarkRegistered updates the passed_registration_challenge_at column with the
+// current timestamp
+func (a *Account) MarkRegistered() error {
+	now := time.Now()
+	a.PassedRegistrationChallengeAt = &now
+
+	return a.Save()
+}
+
+// SetMultisigFactoryIdentifier updates the user's account with the given
+// multisig factory identifier
+func (a *Account) SetMultisigFactoryIdentifier(identifier int64) error {
+	fmt.Println(a.MultisigFactoryIdentifier)
+	if a.MultisigFactoryIdentifier != nil && a.MultisigFactoryIdentifier.Valid {
+		return errors.New("identifier can only be set once")
+	}
+
+	a.MultisigFactoryIdentifier = &sql.NullInt64{Valid: true, Int64: identifier}
+	return a.Save()
+}
+
+// SetMultisigAddress updates the user's account with the given multisig wallet
+// address
+func (a *Account) SetMultisigAddress(address string) error {
+	a.MultisigAddress = &sql.NullString{Valid: true, String: address}
+	return a.Save()
 }

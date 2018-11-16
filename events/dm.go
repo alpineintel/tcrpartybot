@@ -3,12 +3,10 @@ package events
 import (
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	goTwitter "github.com/stevenleeg/go-twitter/twitter"
 
@@ -197,14 +195,14 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 
 	// They got it! Let's mark the challenge as completed and give them another
 	// question if they have any remaining
-	err := models.MarkChallengeCompleted(data.Challenge.RegistrationChallenge.ID)
+	err := data.Challenge.MarkCompleted()
 	if err != nil {
 		errChan <- err
 		return
 	}
 
 	// Are they completely done?
-	completedChallenges, err := models.AccountHasCompletedChallenges(data.Account.ID)
+	completedChallenges, err := data.Account.HasCompletedChallenges()
 	if err != nil {
 		errChan <- err
 		return
@@ -212,7 +210,7 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 
 	// Yes! Let's let them know that they're good to go.
 	if completedChallenges {
-		err := models.MarkAccountRegistered(data.Account.ID)
+		err := data.Account.MarkRegistered()
 		if err != nil {
 			errChan <- err
 			return
@@ -235,7 +233,7 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 		return
 	}
 
-	err = models.MarkRegistrationChallengeSent(activeChallenge.RegistrationChallenge.ID)
+	err = activeChallenge.MarkSent()
 	if err != nil {
 		errChan <- err
 		return
@@ -249,7 +247,13 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 }
 
 func provisionWallet(account *models.Account, errChan chan<- error) {
-	tx, _, err := contracts.DeployWallet()
+	tx, identifier, err := contracts.DeployWallet()
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	err = account.SetMultisigFactoryIdentifier(identifier)
 	if err != nil {
 		errChan <- err
 		return
@@ -265,18 +269,5 @@ func provisionWallet(account *models.Account, errChan chan<- error) {
 	if receipt.Status == ethTypes.ReceiptStatusFailed {
 		errChan <- fmt.Errorf("Could not create multisig wallet for account %d", account.ID)
 		return
-	}
-
-	// Find the address of the wallet
-	var walletAddress ethCommon.Address
-	for _, event := range receipt.Logs {
-		if event.Address != ethCommon.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS")) {
-			continue
-		}
-
-		// TODO: Change this to actually filter the logs and find the proper
-		// event. Perhaps see https://goethereumbook.org/event-read-erc20/
-		walletAddress = ethCommon.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS"))
-		fmt.Printf("Found a wallet! %s", walletAddress)
 	}
 }

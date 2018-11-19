@@ -5,19 +5,13 @@ import (
 	_ "github.com/lib/pq"
 	"log"
 	"os"
-	"time"
 )
 
-var session *sqlx.DB = nil
-
-type NullTime struct {
-	Time  time.Time
-	Valid bool
-}
+var pool *sqlx.DB = nil
 
 func GetDBSession() *sqlx.DB {
-	if session != nil {
-		return session
+	if pool != nil {
+		return pool
 	}
 
 	session, err := sqlx.Open("postgres", os.Getenv("DATABASE_URI"))
@@ -26,5 +20,6 @@ func GetDBSession() *sqlx.DB {
 		log.Fatalf("Could not connect to specified database: %s", err)
 	}
 
+	pool = session
 	return session
 }

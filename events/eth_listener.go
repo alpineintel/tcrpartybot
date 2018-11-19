@@ -78,9 +78,9 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 			errChan <- err
 		}
 
-		for _, log := range logs {
+		for _, ethLog := range logs {
 			event := contracts.MultiSigWalletFactoryContractInstantiation{}
-			err := walletFactoryABI.Unpack(&event, "ContractInstantiation", log.Data)
+			err := walletFactoryABI.Unpack(&event, "ContractInstantiation", ethLog.Data)
 			if err != nil {
 				errChan <- err
 			}

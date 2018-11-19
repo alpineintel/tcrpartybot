@@ -2,7 +2,6 @@ package contracts
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"os"

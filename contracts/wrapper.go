@@ -84,9 +84,7 @@ func MintTokens(address string, amount int64) (*types.Transaction, error) {
 	return tx, nil
 }
 
-// Apply creates a new listing application on the TCR for the given twitter
-// handle
-func Apply(amount int64, twitterHandle string) (*types.Transaction, error) {
+func submitTransaction(multisigAddress string, tx *proxiedTransaction) (*types.Transaction, error) {
 	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
@@ -97,15 +95,22 @@ func Apply(amount int64, twitterHandle string) (*types.Transaction, error) {
 		return nil, err
 	}
 
-	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
-	registry, err := NewRegistry(contractAddress, client)
+	contractAddress := common.HexToAddress(multisigAddress)
+	wallet, err := NewMultiSigWallet(contractAddress, client)
 	if err != nil {
 		return nil, err
 	}
 
+	submitTX, err := wallet.SubmitTransaction(txOpts, tx.To, tx.Value, tx.Data)
+	return submitTX, err
+}
+
+// Apply creates a new listing application on the TCR for the given twitter
+// handle
+func Apply(multisigAddress string, amount int64, twitterHandle string) (*types.Transaction, error) {
 	// Generate a listing hash
 	listingHash := make([]byte, 32)
-	_, err = rand.Read(listingHash)
+	_, err := rand.Read(listingHash)
 	if err != nil {
 		return nil, err
 	}
@@ -114,9 +119,24 @@ func Apply(amount int64, twitterHandle string) (*types.Transaction, error) {
 	var txListingHash [32]byte
 	copy(txListingHash[:], listingHash[0:4])
 	txAmount := big.NewInt(amount)
-	tx, err := registry.Apply(txOpts, txListingHash, txAmount, twitterHandle)
 
-	return tx, nil
+	// Generate a new proxied transaction to be submitted via the wallet
+	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	proxiedTX, err := newProxiedTransaction(
+		contractAddress,
+		RegistryABI,
+		"apply",
+		txListingHash,
+		txAmount,
+		twitterHandle,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := submitTransaction(multisigAddress, proxiedTX)
+	return tx, err
 }
 
 // DeployWallet creates a new instance of the multisig wallet and returns the

@@ -26,6 +26,8 @@ const (
 	invalidChallengeResponseMsg = "🙅‍♀️ That's not right! %s"
 	nextChallengeMsg            = "Nice, that's it! Here's another one for you: %s"
 	preregistrationSuccessMsg   = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
+
+	tokensToApply = 500
 )
 
 // RegistrationEventData collects the required data for keeping track of
@@ -158,7 +160,7 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 				return
 			}
 
-			tx, err := contracts.Apply(500, argv[1])
+			tx, err := contracts.Apply(account.MultisigAddress.String, tokensToApply, argv[1])
 			if err != nil {
 				errChan <- err
 				sendDM(nominateSubmissionErrorMsg)

@@ -27,13 +27,17 @@ func distributeTokens(errChan chan<- error) {
 		}
 
 		// Mint new tokens to the wallet's address
-		tx, err := contracts.MintTokens(account.ETHAddress, initialDistributionAmount)
+		if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
+			return
+		}
+
+		tx, err := contracts.MintTokens(account.MultisigAddress.String, initialDistributionAmount)
 		if err != nil {
 			errChan <- err
 			return
 		}
 
-		log.Printf("\tMinted tokens to %s (%s)", account.TwitterHandle, account.ETHAddress)
+		log.Printf("\tMinted tokens to %s (%s)", account.TwitterHandle, account.MultisigAddress.String)
 		log.Printf("\ttx: %s", tx.Hash().Hex())
 	}
 }

@@ -1,9 +1,7 @@
 package events
 
 import (
-	"encoding/hex"
 	"errors"
-	"github.com/ethereum/go-ethereum/crypto"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
@@ -30,22 +28,10 @@ func processRegistration(event *TwitterEvent, errChan chan<- error) {
 	}
 
 	log.Printf("Creating account for %d", event.SourceID)
-	// Let's create a wallet for them
-	key, err := crypto.GenerateKey()
-	if err != nil {
-		errChan <- err
-		return
-	}
 
-	address := crypto.PubkeyToAddress(key.PublicKey).Hex()
-	privateKey := hex.EncodeToString(key.D.Bytes())
-
-	// Store the association between their handle and their wallet in our db
 	account = &models.Account{
 		TwitterHandle: event.SourceHandle,
 		TwitterID:     event.SourceID,
-		ETHAddress:    address,
-		ETHPrivateKey: privateKey,
 	}
 	err = models.CreateAccount(account)
 

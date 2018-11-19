@@ -45,7 +45,6 @@ func GetTokenBalance(address string) (int64, error) {
 	tokenAddress := common.HexToAddress(os.Getenv("TOKEN_ADDRESS"))
 	token, err := NewTCRPartyPoints(tokenAddress, client)
 	if err != nil {
-		fmt.Println("something went wrong init")
 		return 0, err
 	}
 
@@ -88,13 +87,13 @@ func MintTokens(address string, amount int64) (*types.Transaction, error) {
 
 // Apply creates a new listing application on the TCR for the given twitter
 // handle
-func Apply(privateKey string, amount int64, twitterHandle string) (*types.Transaction, error) {
+func Apply(amount int64, twitterHandle string) (*types.Transaction, error) {
 	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
 	}
 
-	txOpts, err := setupTransactionOpts(privateKey, 500000)
+	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
 	if err != nil {
 		return nil, err
 	}

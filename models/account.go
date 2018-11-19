@@ -14,8 +14,6 @@ type Account struct {
 	ID                            int64           `db:"id"`
 	TwitterID                     int64           `db:"twitter_id"`
 	TwitterHandle                 string          `db:"twitter_handle"`
-	ETHAddress                    string          `db:"eth_address"`
-	ETHPrivateKey                 string          `db:"eth_private_key"`
 	MultisigAddress               *sql.NullString `db:"multisig_address"`
 	MultisigFactoryIdentifier     *sql.NullInt64  `db:"multisig_factory_identifier"`
 	PassedRegistrationChallengeAt *time.Time      `db:"passed_registration_challenge_at"`
@@ -29,12 +27,10 @@ func CreateAccount(account *Account) error {
 	err := db.QueryRow(`
 		INSERT INTO accounts (
 			twitter_handle,
-			twitter_id,
-			eth_address,
-			eth_private_key
-		) VALUES($1, $2, $3, $4)
+			twitter_id
+		) VALUES($1, $2)
 		RETURNING id
-	`, account.TwitterHandle, account.TwitterID, account.ETHAddress, account.ETHPrivateKey).Scan(&id)
+	`, account.TwitterHandle, account.TwitterID).Scan(&id)
 
 	if err != nil {
 		return err

@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -59,14 +58,11 @@ func (challenge *RegistrationChallenge) MarkSent() error {
 	db := GetDBSession()
 
 	now := time.Now()
-	res, err := db.Exec(`
+	_, err := db.Exec(`
 		UPDATE registration_challenges
 			SET sent_at = $1
 		WHERE id = $2
 	`, &now, challenge.ID)
-	fmt.Printf("updating challenge %d", challenge.ID)
-	aff, _ := res.RowsAffected()
-	fmt.Println(aff)
 
 	return err
 }

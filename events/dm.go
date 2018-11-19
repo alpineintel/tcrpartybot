@@ -125,7 +125,11 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 
 		switch argv[0] {
 		case "balance":
-			balance, err := contracts.GetTokenBalance(account.ETHAddress)
+			if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
+				return
+			}
+
+			balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
 			humanBalance := balance / contracts.TokenDecimals
 			if err != nil {
 				errChan <- err
@@ -138,7 +142,11 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 				return
 			}
 
-			balance, err := contracts.GetTokenBalance(account.ETHAddress)
+			if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
+				return
+			}
+
+			balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
 			humanBalance := balance / contracts.TokenDecimals
 			if err != nil {
 				errChan <- err
@@ -150,7 +158,7 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 				return
 			}
 
-			tx, err := contracts.Apply(account.ETHPrivateKey, 500, argv[1])
+			tx, err := contracts.Apply(500, argv[1])
 			if err != nil {
 				errChan <- err
 				sendDM(nominateSubmissionErrorMsg)

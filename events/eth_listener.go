@@ -3,7 +3,7 @@ package events
 import (
 	"context"
 	"errors"
-	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -93,7 +93,7 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 				continue
 			}
 
-			fmt.Printf("Wallet %d detected at %s\n", event.Identifier, event.Instantiation.Hex())
+			log.Printf("Wallet %d detected at %s\n", event.Identifier, event.Instantiation.Hex())
 
 			err = account.SetMultisigAddress(event.Instantiation.Hex())
 			if err != nil {

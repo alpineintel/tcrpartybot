@@ -1,13 +1,11 @@
 package events
 
 import (
-	"fmt"
 	"time"
 )
 
 // EventType is an alias type for event constants' values
 type twitterEventType string
-type ethEventType string
 
 const (
 	TwitterEventTypeMention       twitterEventType = "EventTypeMention"
@@ -19,7 +17,7 @@ const (
 
 const (
 	// ETHEventNewMultisigWallet is triggered when the multisig wallet factory instantiates a new wallet
-	ETHEventNewMultisigWallet ethEventType = "ETHEventNewMultisigWallet"
+	ETHEventNewMultisigWallet = "ContractInstantiation"
 )
 
 // TwitterEvent represents an incoming event from Twitter
@@ -33,9 +31,8 @@ type TwitterEvent struct {
 
 // ETHEvent represents an incoming event from the blockchain
 type ETHEvent struct {
-	EventType ethEventType
-	Time      time.Time
-	Data      interface{}
+	EventType string
+	Data      []byte
 }
 
 // ProcessTwitterEvents listens for twitter events and fires of a corresponding handler
@@ -59,13 +56,19 @@ func ProcessTwitterEvents(eventChan <-chan *TwitterEvent, errorChan chan<- error
 }
 
 // ProcessETHEvents listens for blockchain events and fires a corresponding handler
-func ProcessETHEvents(eventChan <-chan *ETHEvent, errorChan chan<- error) {
+func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	for {
 		event := <-eventChan
+		var err error
+
 		switch event.EventType {
 		case ETHEventNewMultisigWallet:
-			fmt.Println("A new multisig wallet came in!!")
+			err = processMultisigWalletCreation(event)
 			break
+		}
+
+		if err != nil {
+			errChan <- err
 		}
 	}
 }

@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"errors"
-	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -17,6 +16,40 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+type watchedContract struct {
+	ABI          abi.ABI
+	Address      common.Address
+	TopicStructs map[common.Hash]interface{}
+}
+
+type topicResource struct {
+	Name     string
+	Contract watchedContract
+}
+
+func generateContracts() ([]*watchedContract, error) {
+	walletFactoryABI, err := abi.JSON(strings.NewReader(string(contracts.MultiSigWalletFactoryABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	registryABI, err := abi.JSON(strings.NewReader(string(contracts.RegistryABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	return []*watchedContract{
+		&watchedContract{
+			ABI:     walletFactoryABI,
+			Address: common.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS")),
+		},
+		&watchedContract{
+			ABI:     registryABI,
+			Address: common.HexToAddress(os.Getenv("TCR_ADDRESS")),
+		},
+	}, nil
+}
+
 // StartETHListener begins listening for relevant events on the ETH blockchain
 func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 	client, err := contracts.GetClientSession()
@@ -25,15 +58,27 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 		return
 	}
 
-	// Prepare the ABI parsers we'll need
-	walletFactoryABI, err := abi.JSON(strings.NewReader(string(contracts.MultiSigWalletFactoryABI)))
+	contracts, err := generateContracts()
 	if err != nil {
 		errChan <- err
 		return
 	}
 
-	// Get the contract address we'll be watching
-	walletFactoryAddress := common.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS"))
+	// Create some structures that will make our lives easier below
+	watchedAddresses := []common.Address{}
+	watchedTopics := map[common.Hash]string{}
+
+	for _, contract := range contracts {
+		watchedAddresses = append(watchedAddresses, contract.Address)
+
+		for _, event := range contract.ABI.Events {
+			watchedTopics[event.Id()] = event.Name
+		}
+	}
+
+	query := ethereum.FilterQuery{
+		Addresses: watchedAddresses,
+	}
 
 	// Begin the watching loop
 	for {
@@ -66,38 +111,29 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 			continue
 		}
 
-		// Finally, query the ETH node for any interesting events
-		query := ethereum.FilterQuery{
-			FromBlock: blockCursor,
-			ToBlock:   latestBlock.Number,
-			Addresses: []common.Address{walletFactoryAddress},
-		}
+		// The filter is inclusive, therefore we should add 1 to the last seen block
+		query.FromBlock = blockCursor.Add(blockCursor, big.NewInt(1))
+		query.ToBlock = latestBlock.Number
 
+		// Finally, query the ETH node for any interesting events
 		logs, err := client.FilterLogs(context.Background(), query)
 		if err != nil {
 			errChan <- err
 		}
 
 		for _, ethLog := range logs {
-			event := contracts.MultiSigWalletFactoryContractInstantiation{}
-			err := walletFactoryABI.Unpack(&event, "ContractInstantiation", ethLog.Data)
-			if err != nil {
-				errChan <- err
-			}
+			// Look for a topic that we're interested in
+			for _, topicHash := range ethLog.Topics {
+				eventName := watchedTopics[topicHash]
+				if eventName == "" {
+					continue
+				}
 
-			account, err := models.FindAccountByMultisigFactoryIdentifier(event.Identifier.Int64())
-			if err != nil {
-				errChan <- err
-				continue
-			} else if account == nil {
-				continue
-			}
-
-			log.Printf("Wallet %d detected at %s\n", event.Identifier, event.Instantiation.Hex())
-
-			err = account.SetMultisigAddress(event.Instantiation.Hex())
-			if err != nil {
-				errChan <- err
+				// We've found one! Let's submit it to our event channel
+				eventChan <- &ETHEvent{
+					EventType: eventName,
+					Data:      ethLog.Data,
+				}
 			}
 		}
 

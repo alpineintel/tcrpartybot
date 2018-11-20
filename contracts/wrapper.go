@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"context"
+	"log"
 	"math/big"
 	"math/rand"
 	"os"
@@ -17,8 +18,25 @@ var session *ethclient.Client
 const (
 	// TokenDecimals is the number you can multiply/divide by in order to
 	// arrive at a human readable TCRP balance
-	TokenDecimals = 10 ^ 15
+	TokenDecimals = 15
 )
+
+// GetAtomicTokens inputs an amount in human-readable tokens and outputs the same amount of TCRP in its smallest denomination
+func GetAtomicTokenAmount(amount int64) *big.Int {
+	tokens := big.NewInt(amount)
+	multi := new(big.Int).Exp(big.NewInt(10), big.NewInt(TokenDecimals), nil)
+	tokens.Mul(tokens, multi)
+
+	return tokens
+}
+
+// GetHumanTokenAmount takes an input amount in the smallest token denomination and returns a value in normal TCRP
+func GetHumanTokenAmount(amount *big.Int) *big.Int {
+	multi := new(big.Int).Exp(big.NewInt(10), big.NewInt(TokenDecimals), nil)
+	amount.Div(amount, multi)
+
+	return amount
+}
 
 // GetClientSession returns an ethereum client
 func GetClientSession() (*ethclient.Client, error) {
@@ -35,28 +53,28 @@ func GetClientSession() (*ethclient.Client, error) {
 }
 
 // GetTokenBalance returns the balance (in the smallest delimiter) of a given wallet address
-func GetTokenBalance(address string) (int64, error) {
+func GetTokenBalance(address string) (*big.Int, error) {
 	client, err := GetClientSession()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	tokenAddress := common.HexToAddress(os.Getenv("TOKEN_ADDRESS"))
 	token, err := NewTCRPartyPoints(tokenAddress, client)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	balance, err := token.BalanceOf(nil, common.HexToAddress(address))
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return balance.Int64(), nil
+	return balance, nil
 }
 
 // MintTokens assigns new tokens to the given ETH address
-func MintTokens(address string, amount int64) (*types.Transaction, error) {
+func MintTokens(address string, amount *big.Int) (*types.Transaction, error) {
 	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
@@ -74,9 +92,8 @@ func MintTokens(address string, amount int64) (*types.Transaction, error) {
 	}
 
 	txAddress := common.HexToAddress(address)
-	txAmount := big.NewInt(amount)
 
-	tx, err := token.Mint(txOpts, txAddress, txAmount)
+	tx, err := token.Mint(txOpts, txAddress, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -84,33 +101,44 @@ func MintTokens(address string, amount int64) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func submitTransaction(multisigAddress string, tx *proxiedTransaction) (*types.Transaction, error) {
-	client, err := GetClientSession()
+// TCRPApprove permits a given address spend to N TCRP on a wallet's behalf
+func TCRPApprove(multisigAddress string, spenderAddress string, amount *big.Int) (*types.Transaction, error) {
+	log.Printf("Approving %d TCRP for spender %s", GetHumanTokenAmount(amount).Int64(), spenderAddress)
+	tokenAddress := common.HexToAddress(os.Getenv("TOKEN_ADDRESS"))
+	proxiedTX, err := newProxiedTransaction(
+		tokenAddress,
+		TCRPartyPointsABI,
+		"approve",
+		common.HexToAddress(spenderAddress),
+		amount,
+	)
+
 	if err != nil {
 		return nil, err
 	}
 
-	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
-	if err != nil {
-		return nil, err
-	}
-
-	contractAddress := common.HexToAddress(multisigAddress)
-	wallet, err := NewMultiSigWallet(contractAddress, client)
-	if err != nil {
-		return nil, err
-	}
-
-	submitTX, err := wallet.SubmitTransaction(txOpts, tx.To, tx.Value, tx.Data)
-	return submitTX, err
+	tx, err := submitTransaction(multisigAddress, proxiedTX)
+	return tx, err
 }
 
 // Apply creates a new listing application on the TCR for the given twitter
 // handle
-func Apply(multisigAddress string, amount int64, twitterHandle string) (*types.Transaction, error) {
+func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*types.Transaction, error) {
+	// First let's approve `amount` tokens for spending by the TCR
+	approvalTX, err := TCRPApprove(multisigAddress, os.Getenv("TCR_ADDRESS"), amount)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = AwaitTransactionConfirmation(approvalTX.Hash())
+	log.Printf("Approved %d TCRP to TCR token on behalf of %s", GetHumanTokenAmount(amount).Int64(), multisigAddress)
+	if err != nil {
+		return nil, err
+	}
+
 	// Generate a listing hash
 	listingHash := make([]byte, 32)
-	_, err := rand.Read(listingHash)
+	_, err = rand.Read(listingHash)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +146,6 @@ func Apply(multisigAddress string, amount int64, twitterHandle string) (*types.T
 	// Convert that hash into the type it needs to be
 	var txListingHash [32]byte
 	copy(txListingHash[:], listingHash[0:4])
-	txAmount := big.NewInt(amount)
 
 	// Generate a new proxied transaction to be submitted via the wallet
 	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
@@ -127,7 +154,7 @@ func Apply(multisigAddress string, amount int64, twitterHandle string) (*types.T
 		RegistryABI,
 		"apply",
 		txListingHash,
-		txAmount,
+		amount,
 		twitterHandle,
 	)
 

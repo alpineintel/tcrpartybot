@@ -1,6 +1,7 @@
 package events
 
 import (
+	"log"
 	"time"
 )
 
@@ -13,11 +14,11 @@ const (
 	TwitterEventTypeVote          twitterEventType = "EventTypeVote"
 	TwitterEventTypePollCompleted twitterEventType = "EventTypePollCompleted"
 	TwitterEventTypeFollow        twitterEventType = "EventTypeFollow"
-)
 
-const (
 	// ETHEventNewMultisigWallet is triggered when the multisig wallet factory instantiates a new wallet
-	ETHEventNewMultisigWallet = "ContractInstantiation"
+	ETHEventNewMultisigWallet     = "ContractInstantiation"
+	ETHEventNewTCRApplication     = "_Application"
+	ETHEventNewMultisigSubmission = "Submission"
 )
 
 // TwitterEvent represents an incoming event from Twitter
@@ -60,6 +61,8 @@ func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	for {
 		event := <-eventChan
 		var err error
+
+		log.Printf("New ETH event: %s", event.EventType)
 
 		switch event.EventType {
 		case ETHEventNewMultisigWallet:

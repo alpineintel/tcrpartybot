@@ -132,11 +132,12 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 			}
 
 			balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
-			humanBalance := balance / contracts.TokenDecimals
 			if err != nil {
 				errChan <- err
 				return
 			}
+
+			humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
 			sendDM(fmt.Sprintf(balanceMsg, humanBalance))
 		case "nominate":
 			if len(argv) != 2 {
@@ -149,21 +150,22 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 			}
 
 			balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
-			humanBalance := balance / contracts.TokenDecimals
 			if err != nil {
 				errChan <- err
 				return
 			}
 
-			if humanBalance < 500 {
+			if balance.Cmp(contracts.GetAtomicTokenAmount(tokensToApply)) == -1 {
 				sendDM(nominateInsufficientFundsMsg)
 				return
 			}
 
-			tx, err := contracts.Apply(account.MultisigAddress.String, tokensToApply, argv[1])
+			// Calculate the atomic number of tokens needed to apply
+			tokens := contracts.GetAtomicTokenAmount(tokensToApply)
+			tx, err := contracts.Apply(account.MultisigAddress.String, tokens, argv[1])
 			if err != nil {
 				errChan <- err
-				sendDM(nominateSubmissionErrorMsg)
+				//sendDM(nominateSubmissionErrorMsg)
 				return
 			}
 			msg := fmt.Sprintf(nominateSuccessMsg, tx.Hash().Hex())

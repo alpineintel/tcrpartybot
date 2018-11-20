@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	initialDistributionAmount = 1500*10 ^ 15
+	initialDistributionAmount = 1500
 )
 
 func distributeTokens(errChan chan<- error) {
@@ -31,7 +31,8 @@ func distributeTokens(errChan chan<- error) {
 			return
 		}
 
-		tx, err := contracts.MintTokens(account.MultisigAddress.String, initialDistributionAmount)
+		amount := contracts.GetAtomicTokenAmount(initialDistributionAmount)
+		tx, err := contracts.MintTokens(account.MultisigAddress.String, amount)
 		if err != nil {
 			errChan <- err
 			return

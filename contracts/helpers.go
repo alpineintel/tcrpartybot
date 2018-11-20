@@ -5,9 +5,13 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
+	"os"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -64,4 +68,49 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 	auth.GasPrice = gasPrice
 
 	return auth, nil
+}
+
+func submitTransaction(multisigAddress string, tx *proxiedTransaction) (*types.Transaction, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
+	if err != nil {
+		return nil, err
+	}
+
+	contractAddress := common.HexToAddress(multisigAddress)
+	wallet, err := NewMultiSigWallet(contractAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	submitTX, err := wallet.SubmitTransaction(txOpts, tx.To, tx.Value, tx.Data)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return submitTX, err
+}
+
+type proxiedTransaction struct {
+	To    common.Address
+	Value *big.Int
+	Data  []byte
+}
+
+func newProxiedTransaction(to common.Address, abiString string, method string, args ...interface{}) (*proxiedTransaction, error) {
+	parsed, err := abi.JSON(strings.NewReader(abiString))
+	data, err := parsed.Pack(method, args...)
+
+	tx := &proxiedTransaction{
+		To:    to,
+		Value: big.NewInt(0),
+		Data:  data,
+	}
+
+	return tx, err
 }

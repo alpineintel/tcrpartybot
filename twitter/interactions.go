@@ -7,6 +7,14 @@ import (
 	"strconv"
 )
 
+// SendTweet sends a new tweet from the given handle constant
+func SendTweet(handle string, message string) error {
+	client, _, err := GetClientFromHandle(handle)
+
+	_, _, err = client.Statuses.Update(message, nil)
+	return err
+}
+
 // SendDM sends a direct message from the VIP party bot to the specified handle
 func SendDM(recipientID int64, message string) error {
 	client, _, err := GetClientFromHandle(VIPBotHandle)

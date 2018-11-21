@@ -2,7 +2,6 @@ package contracts
 
 import (
 	"context"
-	"encoding/hex"
 	"log"
 	"math/big"
 	"math/rand"

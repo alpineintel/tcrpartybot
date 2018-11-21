@@ -82,6 +82,22 @@ func FindAccountByID(id int64) (*Account, error) {
 	return &account, nil
 }
 
+// FindAccountByMultisigAddress returns an account based on the provided multisig address
+func FindAccountByMultisigAddress(address string) (*Account, error) {
+	db := GetDBSession()
+
+	account := Account{}
+	err := db.Get(&account, "SELECT * FROM accounts WHERE multisig_address=$1", address)
+
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	return &account, nil
+}
+
 // FindAccountByMultisigFactoryIdentifier searches for a given account based on
 // its factory identifier returns nil if it cannot be found
 func FindAccountByMultisigFactoryIdentifier(identifier int64) (*Account, error) {

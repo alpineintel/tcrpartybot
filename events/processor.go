@@ -1,7 +1,6 @@
 package events
 
 import (
-	"log"
 	"time"
 )
 
@@ -62,11 +61,12 @@ func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
 		event := <-eventChan
 		var err error
 
-		log.Printf("New ETH event: %s", event.EventType)
-
 		switch event.EventType {
 		case ETHEventNewMultisigWallet:
 			err = processMultisigWalletCreation(event)
+			break
+		case ETHEventNewTCRApplication:
+			err = processNewApplication(event)
 			break
 		}
 

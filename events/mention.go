@@ -5,10 +5,17 @@ import (
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
+	"os"
 	"strings"
 )
 
 func processMention(event *TwitterEvent, errChan chan<- error) {
+	if strings.ToLower(event.SourceHandle) == os.Getenv("PARTY_BOT_HANDLE") {
+		return
+	} else if strings.ToLower(event.SourceHandle) == os.Getenv("VIP_BOT_HANDLE") {
+		return
+	}
+
 	log.Printf("\nReceived mention from %s [%d]: %s", event.SourceHandle, event.SourceID, event.Message)
 	// Filter based on let's party
 	lower := strings.ToLower(event.Message)

@@ -165,7 +165,7 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 			tx, err := contracts.Apply(account.MultisigAddress.String, tokens, argv[1])
 			if err != nil {
 				errChan <- err
-				//sendDM(nominateSubmissionErrorMsg)
+				sendDM(nominateSubmissionErrorMsg)
 				return
 			}
 			msg := fmt.Sprintf(nominateSuccessMsg, tx.Hash().Hex())

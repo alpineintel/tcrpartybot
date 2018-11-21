@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"context"
+	"encoding/hex"
 	"log"
 	"math/big"
 	"math/rand"
@@ -21,21 +22,21 @@ const (
 	TokenDecimals = 15
 )
 
-// GetAtomicTokens inputs an amount in human-readable tokens and outputs the same amount of TCRP in its smallest denomination
+// GetAtomicTokenAmount inputs an amount in human-readable tokens and outputs the same amount of TCRP in its smallest denomination
 func GetAtomicTokenAmount(amount int64) *big.Int {
 	tokens := big.NewInt(amount)
 	multi := new(big.Int).Exp(big.NewInt(10), big.NewInt(TokenDecimals), nil)
-	tokens.Mul(tokens, multi)
+	atomicAmount := new(big.Int).Mul(tokens, multi)
 
-	return tokens
+	return atomicAmount
 }
 
 // GetHumanTokenAmount takes an input amount in the smallest token denomination and returns a value in normal TCRP
 func GetHumanTokenAmount(amount *big.Int) *big.Int {
 	multi := new(big.Int).Exp(big.NewInt(10), big.NewInt(TokenDecimals), nil)
-	amount.Div(amount, multi)
+	humanAmount := new(big.Int).Div(amount, multi)
 
-	return amount
+	return humanAmount
 }
 
 // GetClientSession returns an ethereum client
@@ -131,7 +132,6 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 	}
 
 	_, err = AwaitTransactionConfirmation(approvalTX.Hash())
-	log.Printf("Approved %d TCRP to TCR token on behalf of %s", GetHumanTokenAmount(amount).Int64(), multisigAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 
 	// Convert that hash into the type it needs to be
 	var txListingHash [32]byte
-	copy(txListingHash[:], listingHash[0:4])
+	copy(txListingHash[:], listingHash[0:32])
 
 	// Generate a new proxied transaction to be submitted via the wallet
 	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))

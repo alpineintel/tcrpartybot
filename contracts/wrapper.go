@@ -2,6 +2,7 @@ package contracts
 
 import (
 	"context"
+	"crypto/sha256"
 	"log"
 	"math/big"
 	"math/rand"
@@ -136,11 +137,7 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 	}
 
 	// Generate a listing hash
-	listingHash := make([]byte, 32)
-	_, err = rand.Read(listingHash)
-	if err != nil {
-		return nil, err
-	}
+	listingHash := sha256.Sum256([]byte(twitterHandle))
 
 	// Convert that hash into the type it needs to be
 	var txListingHash [32]byte

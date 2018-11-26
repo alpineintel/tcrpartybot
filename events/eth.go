@@ -54,7 +54,7 @@ func processNewApplication(event *ETHEvent) error {
 	}
 
 	// See if we can find an applicant in our database
-	log.Printf("New application from %s for %s", data.Applicant.Hex(), data.Data)
+	log.Printf("New application from %s for %s (hash: %s)", data.Applicant.Hex(), data.Data, data.ListingHash)
 	account, err := models.FindAccountByMultisigAddress(data.Applicant.Hex())
 	if err != nil {
 		return err

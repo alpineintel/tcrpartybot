@@ -1,8 +1,10 @@
 package events
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"strconv"
 	"strings"
 	"time"
@@ -16,11 +18,18 @@ import (
 )
 
 const (
-	nominateErrorMsg             = "Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'"
+	challengeArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'challenge [twitter handle]'. Eg: 'challenge weratedogs'"
+	challengeNotFoundMsg          = "Looks like nobody has tried creating a listing for this twitter handle yet."
+	challengeAlreadyExistsMsg     = "Looks like somebody has already begun a challenge for this twitter handle. You can support this challenge by voting yes (respond with 'vote %s yes')."
+	challengeInsufficientFundsMsg = "Drat, looks like you don't have enough TCRP to start a challenge. You'll need 500 available in your wallet."
+	challengeSubmissionErrorMsg   = "There was an error trying to submit your challenge. The admins have been notified!"
+	challengeSuccessMsg           = "We've submitted your challenge to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
+
+	nominateArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'"
 	nominateAlreadyAppliedMsg    = "Looks like that Twitter handle has already been submitted to the TCR. A twitter handle can only appear on the TCR once, so you'll need to wait for a successful challenge (or a delisting) in order to re-nominate them."
-	nominateInsufficientFundsMsg = "Drat, looks like you don't have enough TCRP to nominate to the party"
+	nominateInsufficientFundsMsg = "Drat! Looks like you don't have enough TCRP to start a nomination. You'll need 500 available in your wallet."
 	nominateSubmissionErrorMsg   = "There was an error trying to submit your nomination. The admins have been notified!"
-	nominateSuccessMsg           = "We've submitted your nomination to the registry (tx: %s) Keep an eye on @TCRPartyVIP for updates."
+	nominateSuccessMsg           = "We've submitted your nomination to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
 
 	balanceMsg                  = "Your balance is %d TCRP"
 	awaitingPartyBeginMsg       = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
@@ -28,7 +37,7 @@ const (
 	nextChallengeMsg            = "Nice, that's it! Here's another one for you: %s"
 	preregistrationSuccessMsg   = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
 
-	tokensToApply = 500
+	depositAmount = 500
 )
 
 // RegistrationEventData collects the required data for keeping track of
@@ -128,63 +137,19 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 
 		switch argv[0] {
 		case "balance":
-			if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
-				return
-			}
-
-			balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
-			if err != nil {
-				errChan <- err
-				return
-			}
-
-			humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
-			sendDM(fmt.Sprintf(balanceMsg, humanBalance))
+			err = handleBalance(account, argv, sendDM)
 		case "nominate":
-			if len(argv) != 2 {
-				sendDM(nominateErrorMsg)
-				return
-			}
-
-			if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
-				return
-			}
-
-			balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
-			if err != nil {
-				errChan <- err
-				return
-			}
-
-			if balance.Cmp(contracts.GetAtomicTokenAmount(tokensToApply)) == -1 {
-				sendDM(nominateInsufficientFundsMsg)
-				return
-			}
-
-			alreadyApplied, err := contracts.ApplicationWasMade(argv[1])
-			if err != nil {
-				errChan <- err
-				return
-			}
-
-			if alreadyApplied {
-				sendDM(nominateAlreadyAppliedMsg)
-				return
-			}
-
-			// Calculate the atomic number of tokens needed to apply
-			tokens := contracts.GetAtomicTokenAmount(tokensToApply)
-			tx, err := contracts.Apply(account.MultisigAddress.String, tokens, argv[1])
-			if err != nil {
-				errChan <- err
-				sendDM(nominateSubmissionErrorMsg)
-				return
-			}
-			msg := fmt.Sprintf(nominateSuccessMsg, tx.Hash().Hex())
-			sendDM(msg)
+			err = handleNomination(account, argv, sendDM)
+		case "challenge":
+			err = handleChallenge(account, argv, sendDM)
 		default:
 			sendDM(awaitingPartyBeginMsg)
 		}
+
+		if err != nil {
+			errChan <- err
+		}
+
 		return
 	}
 
@@ -294,4 +259,106 @@ func provisionWallet(account *models.Account, errChan chan<- error) {
 		errChan <- fmt.Errorf("Could not create multisig wallet for account %d", account.ID)
 		return
 	}
+}
+
+func handleNomination(account *models.Account, argv []string, sendDM func(string)) error {
+	if len(argv) != 2 {
+		sendDM(nominateArgErrorMsg)
+		return nil
+	}
+
+	if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
+		return errors.New("User attempted to nominate without a multisig address")
+	}
+
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	if balance.Cmp(contracts.GetAtomicTokenAmount(depositAmount)) == -1 {
+		sendDM(nominateInsufficientFundsMsg)
+		return nil
+	}
+
+	alreadyApplied, err := contracts.ApplicationWasMade(argv[1])
+	if err != nil {
+		return err
+	}
+
+	if alreadyApplied {
+		sendDM(nominateAlreadyAppliedMsg)
+		return nil
+	}
+
+	// Calculate the atomic number of tokens needed to apply
+	tokens := contracts.GetAtomicTokenAmount(depositAmount)
+	tx, err := contracts.Apply(account.MultisigAddress.String, tokens, argv[1])
+	if err != nil {
+		sendDM(nominateSubmissionErrorMsg)
+		return err
+	}
+	msg := fmt.Sprintf(nominateSuccessMsg, tx.Hash().Hex())
+	sendDM(msg)
+
+	return nil
+}
+
+func handleBalance(account *models.Account, argv []string, sendDM func(string)) error {
+	if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
+		return nil
+	}
+
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+	sendDM(fmt.Sprintf(balanceMsg, humanBalance))
+
+	return nil
+}
+
+func handleChallenge(account *models.Account, argv []string, sendDM func(string)) error {
+	if len(argv) != 2 {
+		sendDM(challengeArgErrorMsg)
+		return nil
+	}
+
+	if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
+		return errors.New("User attempted to challenge without a multisig address")
+	}
+
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	if balance.Cmp(contracts.GetAtomicTokenAmount(depositAmount)) == -1 {
+		sendDM(challengeInsufficientFundsMsg)
+		return nil
+	}
+
+	listing, err := contracts.GetListing(argv[1])
+	if err != nil {
+		return err
+	} else if listing == nil {
+		sendDM(challengeNotFoundMsg)
+		return nil
+	} else if listing.ChallengeID.Cmp(big.NewInt(0)) != 0 {
+		sendDM(fmt.Sprintf(challengeAlreadyExistsMsg, argv[1]))
+		return nil
+	}
+
+	tokens := contracts.GetAtomicTokenAmount(depositAmount)
+	tx, err := contracts.Challenge(account.MultisigAddress.String, tokens, argv[1])
+	if err != nil {
+		sendDM(challengeSubmissionErrorMsg)
+		return err
+	}
+	msg := fmt.Sprintf(challengeSuccessMsg, tx.Hash().Hex())
+	sendDM(msg)
+
+	return nil
 }

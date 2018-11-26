@@ -2,7 +2,6 @@ package contracts
 
 import (
 	"context"
-	"crypto/sha256"
 	"log"
 	"math/big"
 	"math/rand"
@@ -15,6 +14,17 @@ import (
 )
 
 var session *ethclient.Client
+
+// RegistryListing represents a listing on the TCR
+type RegistryListing struct {
+	ApplicationExpiry *big.Int
+	Whitelisted       bool
+	Owner             common.Address
+	UnstakedDeposit   *big.Int
+	ChallengeID       *big.Int
+	ExitTime          *big.Int
+	ExitTimeExpiry    *big.Int
+}
 
 const (
 	// TokenDecimals is the number you can multiply/divide by in order to
@@ -136,21 +146,46 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 		return nil, err
 	}
 
-	// Generate a listing hash
-	listingHash := sha256.Sum256([]byte(twitterHandle))
-
-	// Convert that hash into the type it needs to be
-	var txListingHash [32]byte
-	copy(txListingHash[:], listingHash[0:32])
-
 	// Generate a new proxied transaction to be submitted via the wallet
+	listingHash := getListingHash(twitterHandle)
 	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
 	proxiedTX, err := newProxiedTransaction(
 		contractAddress,
 		RegistryABI,
 		"apply",
-		txListingHash,
+		listingHash,
 		amount,
+		twitterHandle,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := submitTransaction(multisigAddress, proxiedTX)
+	return tx, err
+}
+
+func Challenge(multisigAddress string, amount *big.Int, twitterHandle string) (*types.Transaction, error) {
+	// First let's approve `amount` tokens for spending by the TCR
+	approvalTX, err := TCRPApprove(multisigAddress, os.Getenv("TCR_ADDRESS"), amount)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = AwaitTransactionConfirmation(approvalTX.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate a new proxied transaction to be submitted via the wallet
+	listingHash := getListingHash(twitterHandle)
+	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	proxiedTX, err := newProxiedTransaction(
+		contractAddress,
+		RegistryABI,
+		"challenge",
+		listingHash,
 		twitterHandle,
 	)
 
@@ -214,8 +249,7 @@ func AwaitTransactionConfirmation(txHash common.Hash) (*types.Receipt, error) {
 // ApplicationWasMade returns true or false depending on whether or not a
 // twitter handle is already an application or listing on the registry
 func ApplicationWasMade(twitterHandle string) (bool, error) {
-	// Generate a listing hash from the handle's string value
-	listingHash := sha256.Sum256([]byte(twitterHandle))
+	listingHash := getListingHash(twitterHandle)
 	client, err := GetClientSession()
 	if err != nil {
 		return false, err
@@ -233,4 +267,32 @@ func ApplicationWasMade(twitterHandle string) (bool, error) {
 	}
 
 	return result, nil
+}
+
+// GetListing returns a listing from the TCR based on a twitter handle
+func GetListing(twitterHandle string) (*RegistryListing, error) {
+	// Generate a listing hash from the handle's string value
+	listingHash := getListingHash(twitterHandle)
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	registryAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	registry, err := NewRegistry(registryAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := registry.Listings(nil, listingHash)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.Owner.Big().Cmp(big.NewInt(0)) == 0 {
+		return nil, nil
+	}
+
+	listing := RegistryListing(result)
+	return &listing, nil
 }

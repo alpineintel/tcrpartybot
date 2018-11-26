@@ -3,6 +3,7 @@ package contracts
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"errors"
 	"math/big"
 	"os"
@@ -14,6 +15,15 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+func getListingHash(twitterHandle string) [32]byte {
+	listingHash := sha256.Sum256([]byte(twitterHandle))
+
+	// Convert that hash into the type it needs to be
+	var txListingHash [32]byte
+	copy(txListingHash[:], listingHash[0:32])
+	return txListingHash
+}
 
 func getPublicAddress(privateKeyString string) (common.Address, error) {
 	privateKey, err := crypto.HexToECDSA(privateKeyString)

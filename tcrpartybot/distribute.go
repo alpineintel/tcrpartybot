@@ -23,19 +23,20 @@ func distributeTokens(errChan chan<- error) {
 		err = accounts.StructScan(&account)
 		if err != nil {
 			errChan <- err
-			return
+			continue
 		}
 
 		// Mint new tokens to the wallet's address
 		if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
-			return
+			log.Printf("\tSkipping %s due to bad address", account.TwitterHandle)
+			continue
 		}
 
 		amount := contracts.GetAtomicTokenAmount(initialDistributionAmount)
 		tx, err := contracts.MintTokens(account.MultisigAddress.String, amount)
 		if err != nil {
 			errChan <- err
-			return
+			continue
 		}
 
 		log.Printf("\tMinted tokens to %s (%s)", account.TwitterHandle, account.MultisigAddress.String)

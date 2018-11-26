@@ -210,3 +210,27 @@ func AwaitTransactionConfirmation(txHash common.Hash) (*types.Receipt, error) {
 
 	return client.TransactionReceipt(ctx, txHash)
 }
+
+// ApplicationWasMade returns true or false depending on whether or not a
+// twitter handle is already an application or listing on the registry
+func ApplicationWasMade(twitterHandle string) (bool, error) {
+	// Generate a listing hash from the handle's string value
+	listingHash := sha256.Sum256([]byte(twitterHandle))
+	client, err := GetClientSession()
+	if err != nil {
+		return false, err
+	}
+
+	registryAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	registry, err := NewRegistry(registryAddress, client)
+	if err != nil {
+		return false, err
+	}
+
+	result, err := registry.AppWasMade(nil, listingHash)
+	if err != nil {
+		return false, err
+	}
+
+	return result, nil
+}

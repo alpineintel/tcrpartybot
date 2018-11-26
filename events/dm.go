@@ -17,6 +17,7 @@ import (
 
 const (
 	nominateErrorMsg             = "Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'"
+	nominateAlreadyAppliedMsg    = "Looks like that Twitter handle has already been submitted to the TCR. A twitter handle can only appear on the TCR once, so you'll need to wait for a successful challenge (or a delisting) in order to re-nominate them."
 	nominateInsufficientFundsMsg = "Drat, looks like you don't have enough TCRP to nominate to the party"
 	nominateSubmissionErrorMsg   = "There was an error trying to submit your nomination. The admins have been notified!"
 	nominateSuccessMsg           = "We've submitted your nomination to the registry (tx: %s) Keep an eye on @TCRPartyVIP for updates."
@@ -157,6 +158,17 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 
 			if balance.Cmp(contracts.GetAtomicTokenAmount(tokensToApply)) == -1 {
 				sendDM(nominateInsufficientFundsMsg)
+				return
+			}
+
+			alreadyApplied, err := contracts.ApplicationWasMade(argv[1])
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			if alreadyApplied {
+				sendDM(nominateAlreadyAppliedMsg)
 				return
 			}
 

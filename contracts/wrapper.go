@@ -17,6 +17,7 @@ import (
 
 const (
 	applicationTopicHash = "0xa27f550c3c7a7c6d8369e5383fdc7a3b4850d8ce9e20066f9d496f6989f00864"
+	gasLimit             = 5000000
 )
 
 var session *ethclient.Client
@@ -216,7 +217,7 @@ func DeployWallet() (*types.Transaction, int64, error) {
 		return nil, 0, err
 	}
 
-	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 5000000)
+	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -369,4 +370,24 @@ func GetUnwhitelistedListings() ([]*RegistryListing, error) {
 	}
 
 	return listings, nil
+}
+
+// UpdateStatus calls the updateStatus method on the registry contract,
+// allowing a listing past its application period to be promoted to a
+// whitelisted listing.
+func UpdateStatus(listingHash [32]byte) (*types.Transaction, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	registryAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	registry, err := NewRegistry(registryAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), gasLimit)
+	tx, err := registry.UpdateStatus(txOpts, listingHash)
+	return tx, err
 }

@@ -21,7 +21,7 @@ func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	}
 
 	for _, listing := range listings {
-		go scheduleApplication(listing)
+		go scheduleApplication(listing, errChan)
 	}
 
 	// Listen for any incoming applications and queue them up
@@ -43,7 +43,7 @@ func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 				continue
 			}
 
-			go scheduleApplication(listing)
+			go scheduleApplication(listing, errChan)
 			break
 		}
 
@@ -53,16 +53,21 @@ func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	}
 }
 
-func scheduleApplication(application *contracts.RegistryListing) {
+func scheduleApplication(application *contracts.RegistryListing, errChan chan<- error) {
 	expirationTime := time.Unix(application.ApplicationExpiry.Int64(), 0)
 	log.Printf("[updater] Watching application 0x%x (exp: %s)", application.ListingHash, expirationTime.String())
 
 	// If we haven't hit the expiration time yet let's sleep until we do
 	if expirationTime.After(time.Now()) {
 		time.Sleep(time.Until(expirationTime) + (5 * time.Second))
-		scheduleApplication(application)
+		scheduleApplication(application, errChan)
 		return
 	}
 
-	log.Printf("[updater] Application 0x%x's period has expired. Updating status...", application.ListingHash)
+	tx, err := contracts.UpdateStatus(application.ListingHash)
+	if err != nil {
+		errChan <- err
+		return
+	}
+	log.Printf("[updater] Application 0x%x's period has expired. Updating tx: %s", application.ListingHash, tx.Hash().Hex())
 }

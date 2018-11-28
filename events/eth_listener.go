@@ -119,6 +119,7 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 		logs, err := client.FilterLogs(context.Background(), query)
 		if err != nil {
 			errChan <- err
+			continue
 		}
 
 		for _, ethLog := range logs {

@@ -7,7 +7,7 @@ on the blockchain in addition to retweeting all members of the live TCR.
 _More docs to come..._
 
 ## Environment variables
-```
+```bash
 VIP_BOT_HANDLE=tcrpartyvip
 PARTY_BOT_HANDLE=tcrpartybot
 DATABASE_URI=data.db
@@ -19,10 +19,14 @@ BASE_URL=https://bbd828f3.ngrok.io
 SERVER_HOST=0.0.0.0:8080
 
 ETH_NODE_URI=http://localhost:8545
+MASTER_PRIVATE_KEY= # Note that this should omit the opening 0x of the private key
+
 TOKEN_ADDRESS=
 WALLET_FACTORY_ADDRESS=
 TCR_ADDRESS=
-MASTER_PRIVATE_KEY= # Note that this should omit the opening 0x of the private key
+# START_BLOCK should be set to the block number of the transaction which
+# creates the registry
+START_BLOCK=
 ```
 
 ## Setup

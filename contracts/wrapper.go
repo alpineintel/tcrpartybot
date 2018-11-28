@@ -2,21 +2,28 @@ package contracts
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math/big"
 	"math/rand"
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+)
+
+const (
+	applicationTopicHash = "0xa27f550c3c7a7c6d8369e5383fdc7a3b4850d8ce9e20066f9d496f6989f00864"
 )
 
 var session *ethclient.Client
 
 // RegistryListing represents a listing on the TCR
 type RegistryListing struct {
+	ListingHash       [32]byte
 	ApplicationExpiry *big.Int
 	Whitelisted       bool
 	Owner             common.Address
@@ -32,7 +39,8 @@ const (
 	TokenDecimals = 15
 )
 
-// GetAtomicTokenAmount inputs an amount in human-readable tokens and outputs the same amount of TCRP in its smallest denomination
+// GetAtomicTokenAmount inputs an amount in human-readable tokens and outputs
+// the same amount of TCRP in its smallest denomination
 func GetAtomicTokenAmount(amount int64) *big.Int {
 	tokens := big.NewInt(amount)
 	multi := new(big.Int).Exp(big.NewInt(10), big.NewInt(TokenDecimals), nil)
@@ -41,7 +49,8 @@ func GetAtomicTokenAmount(amount int64) *big.Int {
 	return atomicAmount
 }
 
-// GetHumanTokenAmount takes an input amount in the smallest token denomination and returns a value in normal TCRP
+// GetHumanTokenAmount takes an input amount in the smallest token denomination
+// and returns a value in normal TCRP
 func GetHumanTokenAmount(amount *big.Int) *big.Int {
 	multi := new(big.Int).Exp(big.NewInt(10), big.NewInt(TokenDecimals), nil)
 	humanAmount := new(big.Int).Div(amount, multi)
@@ -166,6 +175,7 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 	return tx, err
 }
 
+// Challenge initiates a new challenge against the given twitter handle
 func Challenge(multisigAddress string, amount *big.Int, twitterHandle string) (*types.Transaction, error) {
 	// First let's approve `amount` tokens for spending by the TCR
 	approvalTX, err := TCRPApprove(multisigAddress, os.Getenv("TCR_ADDRESS"), amount)
@@ -298,6 +308,65 @@ func GetListingFromHash(listingHash [32]byte) (*RegistryListing, error) {
 		return nil, nil
 	}
 
-	listing := RegistryListing(result)
+	listing := RegistryListing{
+		ListingHash:       listingHash,
+		ApplicationExpiry: result.ApplicationExpiry,
+		Whitelisted:       result.Whitelisted,
+		Owner:             result.Owner,
+		UnstakedDeposit:   result.UnstakedDeposit,
+		ChallengeID:       result.ChallengeID,
+		ExitTime:          result.ExitTime,
+		ExitTimeExpiry:    result.ExitTimeExpiry,
+	}
 	return &listing, nil
+}
+
+// GetUnwhitelistedListings returns a list of registry listings that are still
+// in their approval stage
+func GetUnwhitelistedListings() ([]*RegistryListing, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	blockCursor := new(big.Int)
+	fromBlock, ok := blockCursor.SetString(os.Getenv("START_BLOCK"), 10)
+	if !ok {
+		return nil, errors.New("Could not set fromBlock while getting active registry listings")
+	}
+
+	// Filter all _Application events
+	query := ethereum.FilterQuery{
+		Addresses: []common.Address{
+			common.HexToAddress(os.Getenv("TCR_ADDRESS")),
+		},
+		FromBlock: fromBlock,
+		Topics: [][]common.Hash{
+			{common.HexToHash(applicationTopicHash)},
+		},
+	}
+
+	logs, err := client.FilterLogs(context.Background(), query)
+	if err != nil {
+		return nil, err
+	}
+
+	var listings []*RegistryListing
+	for _, event := range logs {
+		// Get the listing hash
+		var listingHash [32]byte
+		copy(listingHash[:], event.Topics[1].Bytes()[0:32])
+
+		// Make sure this listing still exists
+		listing, err := GetListingFromHash(listingHash)
+		if err != nil {
+			return nil, err
+		} else if listing == nil || listing.Whitelisted {
+			continue
+		}
+
+		listings = append(listings, listing)
+	}
+
+	return listings, nil
 }

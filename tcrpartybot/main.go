@@ -4,17 +4,18 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/joho/godotenv"
-	"gitlab.com/alpinefresh/tcrpartybot/api"
-	"gitlab.com/alpinefresh/tcrpartybot/events"
-	"gitlab.com/alpinefresh/tcrpartybot/models"
-	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
+	"gitlab.com/alpinefresh/tcrpartybot/api"
+	"gitlab.com/alpinefresh/tcrpartybot/events"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
+	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
 
 const (
@@ -145,6 +146,7 @@ func main() {
 	go events.ProcessTwitterEvents(twitterEventChan, errChan)
 	go events.ProcessETHEvents(ethEventChan, errChan)
 	go events.StartETHListener(ethEventChan, errChan)
+	go events.ScheduleUpdates(ethEventChan, errChan)
 	go api.StartServer(twitterEventChan, errChan)
 	go logErrors(errChan)
 

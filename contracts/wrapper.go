@@ -269,10 +269,15 @@ func ApplicationWasMade(twitterHandle string) (bool, error) {
 	return result, nil
 }
 
-// GetListing returns a listing from the TCR based on a twitter handle
-func GetListing(twitterHandle string) (*RegistryListing, error) {
+// GetListingFromHandle returns a listing from the TCR based on a twitter handle
+func GetListingFromHandle(twitterHandle string) (*RegistryListing, error) {
 	// Generate a listing hash from the handle's string value
 	listingHash := getListingHash(twitterHandle)
+	return GetListingFromHash(listingHash)
+}
+
+// GetListingFromHash returns a listing from the TCR based on a [32]byte hash
+func GetListingFromHash(listingHash [32]byte) (*RegistryListing, error) {
 	client, err := GetClientSession()
 	if err != nil {
 		return nil, err

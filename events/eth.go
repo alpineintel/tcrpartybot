@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
@@ -14,6 +15,8 @@ import (
 const (
 	newApplicationWithHandleTweet    = "New #TCRParty listing! @%s has nominated @%s to be on the list for %s TCRP. Challenge this application by DMing 'challenge @%s'."
 	newApplicationWithoutHandleTweet = "New #TCRParty listing! @%s has been nominated to be on the list for %s TCRP. Challenge this application by DMing 'challenge @%s'."
+
+	newChallengeTweet = "New #TCRParty challenge! @%s's listing has been put to the test. Send me a DM with 'vote %s yes/no' to determine their fate."
 )
 
 func processMultisigWalletCreation(event *ETHEvent) error {
@@ -78,6 +81,39 @@ func processNewApplication(event *ETHEvent) error {
 			data.Data,
 		)
 	}
+
+	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
+}
+
+func processNewChallenge(event *ETHEvent) error {
+	registryABI, err := abi.JSON(strings.NewReader(string(contracts.RegistryABI)))
+	if err != nil {
+		return err
+	}
+
+	challenge := contracts.RegistryChallenge{}
+	err = registryABI.Unpack(&challenge, "_Challenge", event.Data)
+	if err != nil {
+		return err
+	}
+
+	copy(challenge.ListingHash[:], event.Topics[1].Bytes()[0:32])
+	challenge.Challenger = common.BytesToAddress(event.Topics[2].Bytes())
+
+	listing, err := contracts.GetListingFromHash(challenge.ListingHash)
+	if err != nil {
+		return err
+	} else if listing == nil {
+		return fmt.Errorf("Could not find listing for challenge %s (listing: %s)", challenge.ChallengeID, string(challenge.ListingHash[:]))
+	}
+
+	log.Printf("New challenge for %s (hash: 0x%x)", challenge.Data, challenge.ListingHash)
+
+	tweet := fmt.Sprintf(
+		newChallengeTweet,
+		challenge.Data,
+		challenge.Data,
+	)
 
 	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
 }

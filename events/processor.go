@@ -2,6 +2,8 @@ package events
 
 import (
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // EventType is an alias type for event constants' values
@@ -17,6 +19,7 @@ const (
 	// ETHEventNewMultisigWallet is triggered when the multisig wallet factory instantiates a new wallet
 	ETHEventNewMultisigWallet     = "ContractInstantiation"
 	ETHEventNewTCRApplication     = "_Application"
+	ETHEventNewTCRChallenge       = "_Challenge"
 	ETHEventNewMultisigSubmission = "Submission"
 )
 
@@ -33,6 +36,7 @@ type TwitterEvent struct {
 type ETHEvent struct {
 	EventType string
 	Data      []byte
+	Topics    []common.Hash
 }
 
 // ProcessTwitterEvents listens for twitter events and fires of a corresponding handler
@@ -67,6 +71,9 @@ func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
 			break
 		case ETHEventNewTCRApplication:
 			err = processNewApplication(event)
+			break
+		case ETHEventNewTCRChallenge:
+			err = processNewChallenge(event)
 			break
 		}
 

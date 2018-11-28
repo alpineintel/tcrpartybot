@@ -10,6 +10,9 @@ import (
 // SendTweet sends a new tweet from the given handle constant
 func SendTweet(handle string, message string) error {
 	client, _, err := GetClientFromHandle(handle)
+	if err != nil {
+		return nil
+	}
 
 	_, _, err = client.Statuses.Update(message, nil)
 	return err

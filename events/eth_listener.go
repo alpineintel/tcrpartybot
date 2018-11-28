@@ -133,6 +133,7 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 				eventChan <- &ETHEvent{
 					EventType: eventName,
 					Data:      ethLog.Data,
+					Topics:    ethLog.Topics,
 				}
 			}
 		}

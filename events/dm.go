@@ -340,7 +340,7 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 		return nil
 	}
 
-	listing, err := contracts.GetListing(argv[1])
+	listing, err := contracts.GetListingFromHandle(argv[1])
 	if err != nil {
 		return err
 	} else if listing == nil {

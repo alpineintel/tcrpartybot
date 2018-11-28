@@ -50,35 +50,39 @@ func processNewApplication(event *ETHEvent) error {
 		return err
 	}
 
-	data := contracts.RegistryApplication{}
-	err = registryABI.Unpack(&data, "_Application", event.Data)
+	application := contracts.RegistryApplication{}
+	err = registryABI.Unpack(&application, "_Application", event.Data)
 	if err != nil {
 		return err
 	}
 
+	// Load in data from topics
+	copy(application.ListingHash[:], event.Topics[1].Bytes()[0:32])
+	application.Applicant = common.BytesToAddress(event.Topics[2].Bytes())
+
 	// See if we can find an applicant in our database
-	log.Printf("New application from %s for %s (hash: %s)", data.Applicant.Hex(), data.Data, data.ListingHash)
-	account, err := models.FindAccountByMultisigAddress(data.Applicant.Hex())
+	log.Printf("New application from %s for %s (hash: %s)", application.Applicant.Hex(), application.Data, application.ListingHash)
+	account, err := models.FindAccountByMultisigAddress(application.Applicant.Hex())
 	if err != nil {
 		return err
 	}
 
 	tweet := ""
-	depositAmount := contracts.GetHumanTokenAmount(data.Deposit).String()
+	depositAmount := contracts.GetHumanTokenAmount(application.Deposit).String()
 	if account != nil {
 		tweet = fmt.Sprintf(
 			newApplicationWithHandleTweet,
 			account.TwitterHandle,
-			data.Data,
+			application.Data,
 			depositAmount,
-			data.Data,
+			application.Data,
 		)
 	} else {
 		tweet = fmt.Sprintf(
 			newApplicationWithoutHandleTweet,
-			data.Data,
+			application.Data,
 			depositAmount,
-			data.Data,
+			application.Data,
 		)
 	}
 
@@ -97,6 +101,7 @@ func processNewChallenge(event *ETHEvent) error {
 		return err
 	}
 
+	// Load in data from topics
 	copy(challenge.ListingHash[:], event.Topics[1].Bytes()[0:32])
 	challenge.Challenger = common.BytesToAddress(event.Topics[2].Bytes())
 

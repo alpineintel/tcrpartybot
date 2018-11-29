@@ -2,6 +2,7 @@ package events
 
 import (
 	"log"
+	"math/big"
 	"time"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
@@ -58,9 +59,24 @@ func scheduleApplication(application *contracts.RegistryListing, errChan chan<- 
 	log.Printf("[updater] Watching application 0x%x (exp: %s)", application.ListingHash, expirationTime.String())
 
 	// If we haven't hit the expiration time yet let's sleep until we do
-	if expirationTime.After(time.Now()) {
-		time.Sleep(time.Until(expirationTime) + (5 * time.Second))
-		scheduleApplication(application, errChan)
+	sleepUntilExpired := expirationTime.After(time.Now())
+	if sleepUntilExpired {
+		time.Sleep(time.Until(expirationTime) + (2 * time.Minute))
+
+		// Fetch the listing again, just in case it's been cleared
+		application, err := contracts.GetListingFromHash(application.ListingHash)
+		if err != nil {
+			errChan <- err
+			return
+		} else if application == nil {
+			log.Printf("[updater] Application 0x%x's no longer exists, canceling update.", application.ListingHash)
+			return
+		}
+	}
+
+	// Cancel if they have a challenge being waged against them
+	if application.ChallengeID.Cmp(big.NewInt(0)) != 0 {
+		log.Printf("[updater] Application 0x%x is being challenged. Canceling update.", application.ListingHash)
 		return
 	}
 

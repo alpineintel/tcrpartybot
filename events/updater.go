@@ -22,7 +22,11 @@ func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	}
 
 	for _, listing := range listings {
-		go scheduleApplication(listing, errChan)
+		if listing.ChallengeID.Cmp(big.NewInt(0)) == 0 {
+			go scheduleApplication(listing, errChan)
+		} else {
+			go scheduleChallenge(listing, errChan)
+		}
 	}
 
 	// Listen for any incoming applications and queue them up
@@ -52,6 +56,11 @@ func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 			errChan <- err
 		}
 	}
+}
+
+func scheduleChallenge(application *contracts.RegistryListing, errChan chan<- error) {
+	// TODO: Trigger reveal and commit
+	log.Printf("[updater] Watching challenged application 0x%x", application.ListingHash)
 }
 
 func scheduleApplication(application *contracts.RegistryListing, errChan chan<- error) {

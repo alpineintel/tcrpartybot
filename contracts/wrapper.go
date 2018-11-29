@@ -391,3 +391,48 @@ func UpdateStatus(listingHash [32]byte) (*types.Transaction, error) {
 	tx, err := registry.UpdateStatus(txOpts, listingHash)
 	return tx, err
 }
+
+// PLCRDeposit locks up a number of tokens in the TCR's PLCR voting contract
+func PLCRDeposit(multisigAddress string, amount *big.Int) (*types.Transaction, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the address of the PLCR voting contract
+	registryAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	registry, err := NewRegistry(registryAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	plcrAddress, err := registry.Voting(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	approvalTX, err := TCRPApprove(multisigAddress, plcrAddress.Hex(), amount)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = AwaitTransactionConfirmation(approvalTX.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Depositing %d into PLCR contract for %s", GetHumanTokenAmount(amount).Int64(), multisigAddress)
+	// Send off a request for voting rights for the given amount
+	proxiedTX, err := newProxiedTransaction(
+		plcrAddress,
+		PLCRVotingABI,
+		"requestVotingRights",
+		amount,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := submitTransaction(multisigAddress, proxiedTX)
+	return tx, err
+}

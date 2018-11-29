@@ -14,6 +14,8 @@ const (
 	newApplicationWithoutHandleTweet = "New #TCRParty listing! @%s has been nominated to be on the list for %s TCRP. Challenge this application by DMing 'challenge @%s'."
 
 	newChallengeTweet = "New #TCRParty challenge! @%s's listing has been put to the test. Send me a DM with 'vote %s yes/no' to determine their fate."
+
+	initialTokenAmount = 50
 )
 
 func processMultisigWalletCreation(event *ETHEvent) error {
@@ -26,15 +28,37 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 	if err != nil {
 		return err
 	} else if account == nil {
+		log.Printf("Could not find account with identifier %d", instantiation.Identifier.Int64())
 		return nil
 	}
 
-	err = account.SetMultisigAddress(instantiation.Instantiation.Hex())
+	// Link their newly created multisig address to the account
+	multisigAddress := instantiation.Instantiation.Hex()
+	err = account.SetMultisigAddress(multisigAddress)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Wallet at %s linked to %s\n", instantiation.Instantiation.Hex(), account.TwitterHandle)
+	log.Printf("Wallet at %s linked to %s\n", multisigAddress, account.TwitterHandle)
+
+	// Mint them 50 tokens for voting
+	atomicAmount := contracts.GetAtomicTokenAmount(initialTokenAmount)
+	mintTx, err := contracts.MintTokens(multisigAddress, atomicAmount)
+	if err != nil {
+		return err
+	}
+
+	_, err = contracts.AwaitTransactionConfirmation(mintTx.Hash())
+	if err != nil {
+		return err
+	}
+
+	// And lock those tokens up into the voting contract
+	_, err = contracts.PLCRDeposit(multisigAddress, atomicAmount)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

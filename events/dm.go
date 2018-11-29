@@ -38,6 +38,7 @@ const (
 	preregistrationSuccessMsg   = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
 
 	depositAmount = 500
+	voteAmount    = 50
 )
 
 // RegistrationEventData collects the required data for keeping track of
@@ -142,6 +143,8 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 			err = handleNomination(account, argv, sendDM)
 		case "challenge":
 			err = handleChallenge(account, argv, sendDM)
+		case "vote":
+			err = handleVote(account, argv, sendDM)
 		default:
 			sendDM(awaitingPartyBeginMsg)
 		}
@@ -360,5 +363,9 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 	msg := fmt.Sprintf(challengeSuccessMsg, tx.Hash().Hex())
 	sendDM(msg)
 
+	return nil
+}
+
+func handleVote(account *models.Account, argv []string, sendDM func(string)) error {
 	return nil
 }

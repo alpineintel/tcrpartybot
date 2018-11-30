@@ -422,7 +422,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	}
 
 	voteValue := argv[2] == "yes"
-	salt, _, err := contracts.PLCRCommitVote(account.MultisigAddress.String, listing.ChallengeID, voteValue)
+	salt, _, err := contracts.PLCRCommitVote(account.MultisigAddress.String, listing.ChallengeID, big.NewInt(voteAmount), voteValue)
 	if err != nil {
 		return err
 	}

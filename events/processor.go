@@ -68,7 +68,7 @@ func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
 		event := <-eventChan
 		var err error
 
-		log.Println(event.EventType)
+		log.Printf("Found event %s", event.EventType)
 		switch event.EventType {
 		case ETHEventNewMultisigWallet:
 			err = processMultisigWalletCreation(event)

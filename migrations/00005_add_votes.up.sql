@@ -1,7 +1,7 @@
 CREATE TABLE public.votes (
     poll_id       INTEGER NOT NULL,
     account_id    INTEGER NOT NULL,
-    salt          INTEGER NOT NULL,
+    salt          NUMERIC NOT NULL,
     vote          BOOLEAN NOT NULL,
     revealed_at   TIMESTAMP WITHOUT TIME ZONE,
     created_at    TIMESTAMP WITHOUT TIME ZONE NOT NULL 

@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -526,7 +528,7 @@ func PLCRDeposit(multisigAddress string, amount *big.Int) (*types.Transaction, e
 }
 
 // PLCRCommitVote calls the commitVote method on the PLCR voting contract
-func PLCRCommitVote(multisigAddress string, pollID *big.Int, vote bool) (int64, *types.Transaction, error) {
+func PLCRCommitVote(multisigAddress string, pollID *big.Int, amount *big.Int, vote bool) (int64, *types.Transaction, error) {
 	plcrAddress, err := GetPLCRContractAddress()
 	if err != nil {
 		return 0, nil, err
@@ -535,12 +537,47 @@ func PLCRCommitVote(multisigAddress string, pollID *big.Int, vote bool) (int64, 
 	// Generate a salt
 	salt := rand.Int63()
 
+	voteOption := int64(0)
+	if vote {
+		voteOption = 1
+	}
+
+	// Generating out secret voting hash is a bit of a process...
+	uintType, err := abi.NewType("uint256")
+	if err != nil {
+		return 0, nil, err
+	}
+
+	arguments := abi.Arguments{
+		{Type: uintType},
+		{Type: uintType},
+	}
+
+	hashBytes, err := arguments.Pack(big.NewInt(voteOption), big.NewInt(salt))
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// Hash the packed arguments
+	var secretHashBuf []byte
+	hashing := sha3.NewKeccak256()
+	hashing.Write(hashBytes)
+	secretHashBuf = hashing.Sum(secretHashBuf)
+
+	log.Printf("abi encoded: %x", hashBytes)
+	log.Printf("secret hash: %x", secretHashBuf)
+
+	// Convert from []byte to [32]byte
+	var secretHash [32]byte
+	copy(secretHash[:], secretHashBuf[0:32])
+
 	proxiedTX, err := newProxiedTransaction(
 		plcrAddress,
 		PLCRVotingABI,
 		"commitVote",
 		pollID,
-		big.NewInt(salt),
+		secretHash,
+		amount,
 		big.NewInt(0),
 	)
 	if err != nil {
@@ -548,6 +585,8 @@ func PLCRCommitVote(multisigAddress string, pollID *big.Int, vote bool) (int64, 
 	}
 
 	tx, err := submitTransaction(multisigAddress, proxiedTX)
+	log.Printf("Committing %d vote for %s on poll %s (tx: %s)", voteOption, multisigAddress, pollID, tx.Hash().Hex())
+
 	return salt, tx, err
 }
 

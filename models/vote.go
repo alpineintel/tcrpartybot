@@ -33,7 +33,6 @@ func CreateVote(account *Account, pollID int64, salt int64, voteVal bool) (*Vote
 			salt,
 			vote
 		) VALUES($1, $2, $3, $4)
-		RETURNING id
 	`, vote.PollID, vote.AccountID, vote.Salt, vote.Vote)
 
 	if err != nil {

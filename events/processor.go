@@ -1,6 +1,7 @@
 package events
 
 import (
+	"log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -17,10 +18,12 @@ const (
 	TwitterEventTypeFollow        twitterEventType = "EventTypeFollow"
 
 	// ETHEventNewMultisigWallet is triggered when the multisig wallet factory instantiates a new wallet
-	ETHEventNewMultisigWallet     = "ContractInstantiation"
-	ETHEventNewTCRApplication     = "_Application"
-	ETHEventNewTCRChallenge       = "_Challenge"
-	ETHEventNewMultisigSubmission = "Submission"
+	ETHEventNewMultisigWallet         = "ContractInstantiation"
+	ETHEventNewTCRApplication         = "_Application"
+	ETHEventTCRApplicationWhitelisted = "_ApplicationWhitelisted"
+	ETHEventNewTCRChallenge           = "_Challenge"
+	ETHEventTCRChallengeSucceeded     = "_ChallengeSucceeded"
+	ETHEventNewMultisigSubmission     = "Submission"
 )
 
 // TwitterEvent represents an incoming event from Twitter
@@ -65,12 +68,19 @@ func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
 		event := <-eventChan
 		var err error
 
+		log.Println(event.EventType)
 		switch event.EventType {
 		case ETHEventNewMultisigWallet:
 			err = processMultisigWalletCreation(event)
 			break
 		case ETHEventNewTCRApplication:
 			err = processNewApplication(event)
+			break
+		case ETHEventTCRApplicationWhitelisted:
+			err = processApplicationWhitelisted(event)
+			break
+		case ETHEventTCRChallengeSucceeded:
+			err = processChallengeSucceeded(event)
 			break
 		case ETHEventNewTCRChallenge:
 			err = processNewChallenge(event)

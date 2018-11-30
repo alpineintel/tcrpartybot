@@ -1,11 +1,13 @@
 package events
 
 import (
+	"fmt"
 	"log"
 	"math/big"
 	"time"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
 )
 
 // ScheduleUpdates finds new/existing applications/challenge polls and
@@ -15,18 +17,14 @@ import (
 func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	// First let's instantiate ourselves with existing challenges/applications
 	// that need to be scheduled
-	listings, err := contracts.GetUnwhitelistedListings()
+	listings, err := contracts.GetAllListings()
 	if err != nil {
 		errChan <- err
 		return
 	}
 
 	for _, listing := range listings {
-		if listing.ChallengeID.Cmp(big.NewInt(0)) == 0 {
-			go scheduleApplication(listing, errChan)
-		} else {
-			go scheduleChallenge(listing, errChan)
-		}
+		go scheduleListing(listing, errChan)
 	}
 
 	// Listen for any incoming applications and queue them up
@@ -48,7 +46,7 @@ func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 				continue
 			}
 
-			go scheduleApplication(listing, errChan)
+			go scheduleListing(listing, errChan)
 			break
 		}
 
@@ -58,35 +56,106 @@ func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	}
 }
 
-func scheduleChallenge(application *contracts.RegistryListing, errChan chan<- error) {
-	// TODO: Trigger reveal and commit
-	log.Printf("[updater] Watching challenged application 0x%x", application.ListingHash)
-}
+func scheduleListing(application *contracts.RegistryListing, errChan chan<- error) {
+	hasOpenChallenge := application.ChallengeID.Cmp(big.NewInt(0)) != 0
 
-func scheduleApplication(application *contracts.RegistryListing, errChan chan<- error) {
-	expirationTime := time.Unix(application.ApplicationExpiry.Int64(), 0)
-	log.Printf("[updater] Watching application 0x%x (exp: %s)", application.ListingHash, expirationTime.String())
+	if !application.Whitelisted && !hasOpenChallenge {
+		// This listing hasn't been whitelisted yet and doesn't have an open
+		// challenge. This means we'll need to schedule a updateStatus task
+		expirationTime := time.Unix(application.ApplicationExpiry.Int64(), 0)
+		if expirationTime.After(time.Now()) {
+			time.Sleep(time.Until(expirationTime))
+		}
 
-	// If we haven't hit the expiration time yet let's sleep until we do
-	sleepUntilExpired := expirationTime.After(time.Now())
-	if sleepUntilExpired {
-		time.Sleep(time.Until(expirationTime) + (2 * time.Minute))
-
-		// Fetch the listing again, just in case it's been cleared
-		application, err := contracts.GetListingFromHash(application.ListingHash)
+		updateStatus(application, errChan)
+	} else if hasOpenChallenge {
+		log.Printf("[updater] Watching 0x%x", application.ListingHash)
+		// The listing has an open challenge, meaning we'll need to schedule
+		// tasks to reveal any votes and update the status
+		poll, err := contracts.GetPoll(application.ChallengeID)
 		if err != nil {
 			errChan <- err
 			return
-		} else if application == nil {
-			log.Printf("[updater] Application 0x%x's no longer exists, canceling update.", application.ListingHash)
-			return
+		}
+
+		commitEndTime := time.Unix(poll.CommitEndDate.Int64(), 0)
+		revealEndTime := time.Unix(poll.RevealEndDate.Int64(), 0)
+		if commitEndTime.After(time.Now()) {
+			// We haven't yet hit the commit time, so let's sleep until we do
+			// and then reveal the vote
+			time.Sleep(time.Until(commitEndTime) + (2 * time.Minute))
+		}
+
+		if revealEndTime.After(time.Now()) {
+			reveal(application, errChan)
+			time.Sleep(time.Until(revealEndTime) + (2 * time.Minute))
+		}
+
+		if revealEndTime.Before(time.Now()) {
+			updateStatus(application, errChan)
 		}
 	}
 
-	// Cancel if they have a challenge being waged against them
-	if application.ChallengeID.Cmp(big.NewInt(0)) != 0 {
-		log.Printf("[updater] Application 0x%x is being challenged. Canceling update.", application.ListingHash)
+	// Fallthrough case is for applications that are whitelisted and have no
+	// open challenges (we don't need to do anything for them)
+}
+
+func reveal(application *contracts.RegistryListing, errChan chan<- error) {
+	votes, err := models.FindUnrevealedVotesFromPoll(application.ChallengeID.Int64())
+	if err != nil {
+		errChan <- err
 		return
+	}
+
+	log.Printf("[updater] Revealing %d votes on poll %s.", len(votes), application.ChallengeID.String())
+	for _, vote := range votes {
+		account, err := models.FindAccountByID(vote.AccountID)
+		if err != nil {
+			errChan <- err
+			continue
+		} else if account == nil {
+			errChan <- fmt.Errorf("Could not find account for ID %d", vote.AccountID)
+			continue
+		}
+
+		log.Printf("\tRevealing %t vote by %s", vote.Vote, account.TwitterHandle)
+		_, err = contracts.PLCRRevealVote(account.MultisigAddress.String, application.ChallengeID, vote.Vote, vote.Salt)
+		if err != nil {
+			errChan <- err
+			continue
+		}
+
+		err = vote.MarkRevealed()
+		if err != nil {
+			errChan <- err
+		}
+	}
+}
+
+func updateStatus(application *contracts.RegistryListing, errChan chan<- error) {
+	log.Printf("[updater] Attempting to updateStatus of listing 0x%x", application.ListingHash)
+	// Refresh the listing, just in case there was a delay before calling this
+	// function
+	application, err := contracts.GetListingFromHash(application.ListingHash)
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	// Reschedule if they have an ongoing challenge being waged against them
+	// and it's not yet reveal time
+	if application.ChallengeID.Cmp(big.NewInt(0)) != 0 {
+		poll, err := contracts.GetPoll(application.ChallengeID)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		revealEndTime := time.Unix(poll.RevealEndDate.Int64(), 0)
+		if revealEndTime.After(time.Now()) {
+			go scheduleListing(application, errChan)
+			return
+		}
 	}
 
 	tx, err := contracts.UpdateStatus(application.ListingHash)
@@ -94,5 +163,5 @@ func scheduleApplication(application *contracts.RegistryListing, errChan chan<- 
 		errChan <- err
 		return
 	}
-	log.Printf("[updater] Application 0x%x's period has expired. Updating tx: %s", application.ListingHash, tx.Hash().Hex())
+	log.Printf("[updater] Done! Updating tx: %s", tx.Hash().Hex())
 }

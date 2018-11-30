@@ -18,6 +18,13 @@ import (
 )
 
 const (
+	votingArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'vote [twitter handle] yes' or 'vote [twitter handle] no'"
+	votingListingNotFoundMsg   = "Hmm, I couldn't find a registry listing for that twitter handle. Are you sure they've been nominated to the registry?"
+	votingChallengeNotFoundMsg = "Looks like that twitter handle doesn't have a challenge opened on it yet. If you'd like to challenge their place on the registry respond with 'challenge %s'."
+	votingChallengeErrorMsg    = "There was an error committing your vote. The admins have been notified!"
+	votingEndedMsg             = "Ack! Looks like the voting period has ended for this challenge. Hang tight, we'll announce the result on %s."
+	votingSuccessMsg           = "Your vote has been committed! Hang tight, we'll announce the results on %s."
+
 	challengeArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'challenge [twitter handle]'. Eg: 'challenge weratedogs'"
 	challengeNotFoundMsg          = "Looks like nobody has tried creating a listing for this twitter handle yet."
 	challengeAlreadyExistsMsg     = "Looks like somebody has already begun a challenge for this twitter handle. You can support this challenge by voting yes (respond with 'vote %s yes')."
@@ -367,5 +374,64 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 }
 
 func handleVote(account *models.Account, argv []string, sendDM func(string)) error {
+	if len(argv) != 3 {
+		sendDM(votingArgErrorMsg)
+		return nil
+	}
+
+	if argv[2] != "yes" && argv[2] != "no" {
+		sendDM(votingArgErrorMsg)
+		return nil
+	}
+
+	if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
+		return errors.New("User attempted to vote without a multisig address")
+	}
+
+	// TODO: Check token balance on the PLCR contract
+
+	// Check to make sure there is an active poll for the given listing
+	listing, err := contracts.GetListingFromHandle(argv[1])
+	if err != nil {
+	} else if listing == nil {
+		sendDM(votingListingNotFoundMsg)
+		return nil
+	} else if listing.ChallengeID.Cmp(big.NewInt(0)) == 0 {
+		sendDM(fmt.Sprintf(votingChallengeNotFoundMsg, argv[1]))
+		return nil
+	}
+
+	// Fetch the poll they want to vote on
+	poll, err := contracts.GetPoll(listing.ChallengeID)
+	if err != nil {
+		return err
+	} else if poll == nil {
+		log.Printf("Poll doesn't exist for listing: %x, challenge: %d", listing.ListingHash, listing.ChallengeID)
+		sendDM(votingChallengeErrorMsg)
+		return err
+	}
+
+	commitEndDate := time.Unix(poll.CommitEndDate.Int64(), 0)
+	revealDate := time.Unix(poll.RevealEndDate.Int64(), 0)
+	fmtRevealDate := revealDate.Format(time.RFC1123)
+
+	// Make sure we're still in the commit phase
+	if commitEndDate.Before(time.Now()) {
+		sendDM(fmt.Sprintf(votingEndedMsg, fmtRevealDate))
+		return nil
+	}
+
+	voteValue := argv[2] == "yes"
+	salt, _, err := contracts.PLCRCommitVote(account.MultisigAddress.String, listing.ChallengeID, voteValue)
+	if err != nil {
+		return err
+	}
+
+	_, err = models.CreateVote(account, listing.ChallengeID.Int64(), salt, voteValue)
+	if err != nil {
+		return err
+	}
+
+	sendDM(fmt.Sprintf(votingSuccessMsg, fmtRevealDate))
 	return nil
 }

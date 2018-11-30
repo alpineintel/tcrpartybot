@@ -62,3 +62,64 @@ func DecodeContractInstantiationEvent(data []byte) (*MultiSigWalletFactoryContra
 
 	return instantiation, err
 }
+
+// DecodeApplicationWhitelistedEvent decodes data from an ABI-encoded byte array
+// slice into a RegistryApplicationWhitelisted struct
+func DecodeApplicationWhitelistedEvent(topics []common.Hash, data []byte) (*RegistryApplicationWhitelisted, error) {
+	registryABI, err := abi.JSON(strings.NewReader(string(RegistryABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	event := &RegistryApplicationWhitelisted{}
+	err = registryABI.Unpack(event, "_ApplicationWhitelisted", data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load in data from topics
+	copy(event.ListingHash[:], topics[1].Bytes()[0:32])
+
+	return event, nil
+}
+
+// DecodeApplicationRemovedEvent decodes data from an ABI-encoded byte array
+// slice into a RegistryApplicationRemoved struct
+func DecodeApplicationRemovedEvent(topics []common.Hash, data []byte) (*RegistryApplicationRemoved, error) {
+	registryABI, err := abi.JSON(strings.NewReader(string(RegistryABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	event := &RegistryApplicationRemoved{}
+	err = registryABI.Unpack(event, "_ApplicationRemoved", data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load in data from topics
+	copy(event.ListingHash[:], topics[1].Bytes()[0:32])
+
+	return event, nil
+}
+
+// DecodeChallengeSucceededEvent decodes data from an ABI-encoded byte array
+// slice into a RegistryChallengeSucceeded struct
+func DecodeChallengeSucceededEvent(topics []common.Hash, data []byte) (*RegistryChallengeSucceeded, error) {
+	registryABI, err := abi.JSON(strings.NewReader(string(RegistryABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	event := &RegistryChallengeSucceeded{}
+	err = registryABI.Unpack(event, "_ChallengeSucceeded", data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load in data from topics
+	copy(event.ListingHash[:], topics[1].Bytes()[0:32])
+	event.ChallengeID = topics[2].Big()
+
+	return event, nil
+}

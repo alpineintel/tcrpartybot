@@ -34,6 +34,15 @@ type RegistryListing struct {
 	ExitTimeExpiry    *big.Int
 }
 
+// Poll represents a poll conducted on the PLCR voting contract
+type Poll struct {
+	CommitEndDate *big.Int
+	RevealEndDate *big.Int
+	VoteQuorum    *big.Int
+	VotesFor      *big.Int
+	VotesAgainst  *big.Int
+}
+
 const (
 	// TokenDecimals is the number you can multiply/divide by in order to
 	// arrive at a human readable TCRP balance
@@ -322,9 +331,72 @@ func GetListingFromHash(listingHash [32]byte) (*RegistryListing, error) {
 	return &listing, nil
 }
 
-// GetUnwhitelistedListings returns a list of registry listings that are still
-// in their approval stage
-func GetUnwhitelistedListings() ([]*RegistryListing, error) {
+// GetListingDataFromHash Returns the data field (ideally a Twitter handle)
+// from a given listing hash.
+func GetListingDataFromHash(listingHash [32]byte) (string, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return "", err
+	}
+
+	blockCursor := new(big.Int)
+	fromBlock, ok := blockCursor.SetString(os.Getenv("START_BLOCK"), 10)
+	if !ok {
+		return "", errors.New("Could not set fromBlock while getting active registry listings")
+	}
+
+	// Since listing data is only broadcast once (in the
+	// initial application event), we need to filter out the specific event we're
+	// looking for in order to fetch the associated data field.
+	query := ethereum.FilterQuery{
+		Addresses: []common.Address{
+			common.HexToAddress(os.Getenv("TCR_ADDRESS")),
+		},
+		FromBlock: fromBlock,
+		Topics: [][]common.Hash{
+			{common.HexToHash(applicationTopicHash)},
+			{common.HexToHash(common.Bytes2Hex(listingHash[:]))},
+		},
+	}
+
+	logs, err := client.FilterLogs(context.Background(), query)
+	if err != nil {
+		return "", err
+	}
+
+	for _, event := range logs {
+		event, err := DecodeApplicationEvent(event.Topics, event.Data)
+		if err != nil {
+			return "", err
+		}
+
+		return event.Data, err
+	}
+
+	// Could not find listing with specified hash
+	return "", nil
+}
+
+// GetPLCRContractAddress returns the address of the PLCR voting contract,
+// fetched directly from the registry contract
+func GetPLCRContractAddress() (common.Address, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	// Fetch the address of the PLCR voting contract
+	registryAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	registry, err := NewRegistry(registryAddress, client)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	return registry.Voting(nil)
+}
+
+// GetAllListings returns a list of registry listings
+func GetAllListings() ([]*RegistryListing, error) {
 	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
@@ -362,7 +434,7 @@ func GetUnwhitelistedListings() ([]*RegistryListing, error) {
 		listing, err := GetListingFromHash(listingHash)
 		if err != nil {
 			return nil, err
-		} else if listing == nil || listing.Whitelisted {
+		} else if listing == nil {
 			continue
 		}
 
@@ -392,21 +464,38 @@ func UpdateStatus(listingHash [32]byte) (*types.Transaction, error) {
 	return tx, err
 }
 
-// PLCRDeposit locks up a number of tokens in the TCR's PLCR voting contract
-func PLCRDeposit(multisigAddress string, amount *big.Int) (*types.Transaction, error) {
+// GetPoll returns a poll from the PLCR voting contract given a challenge ID
+func GetPoll(pollID *big.Int) (*Poll, error) {
 	client, err := GetClientSession()
 	if err != nil {
 		return nil, err
 	}
 
-	// Fetch the address of the PLCR voting contract
-	registryAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
-	registry, err := NewRegistry(registryAddress, client)
+	plcrAddress, err := GetPLCRContractAddress()
 	if err != nil {
 		return nil, err
 	}
 
-	plcrAddress, err := registry.Voting(nil)
+	plcr, err := NewPLCRVoting(plcrAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	pollData, err := plcr.PollMap(nil, pollID)
+	if err != nil {
+		return nil, err
+	} else if pollData.CommitEndDate == nil {
+		return nil, nil
+	}
+
+	poll := Poll(pollData)
+	return &poll, nil
+}
+
+// PLCRDeposit locks up a number of tokens in the TCR's PLCR voting contract
+func PLCRDeposit(multisigAddress string, amount *big.Int) (*types.Transaction, error) {
+	// Fetch the PLCR contract's address
+	plcrAddress, err := GetPLCRContractAddress()
 	if err != nil {
 		return nil, err
 	}
@@ -433,6 +522,56 @@ func PLCRDeposit(multisigAddress string, amount *big.Int) (*types.Transaction, e
 		return nil, err
 	}
 
+	return submitTransaction(multisigAddress, proxiedTX)
+}
+
+// PLCRCommitVote calls the commitVote method on the PLCR voting contract
+func PLCRCommitVote(multisigAddress string, pollID *big.Int, vote bool) (int64, *types.Transaction, error) {
+	plcrAddress, err := GetPLCRContractAddress()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// Generate a salt
+	salt := rand.Int63()
+
+	proxiedTX, err := newProxiedTransaction(
+		plcrAddress,
+		PLCRVotingABI,
+		"commitVote",
+		pollID,
+		big.NewInt(salt),
+		big.NewInt(0),
+	)
+	if err != nil {
+		return 0, nil, err
+	}
+
 	tx, err := submitTransaction(multisigAddress, proxiedTX)
-	return tx, err
+	return salt, tx, err
+}
+
+// PLCRRevealVote reveals a previously committed vote on the PLCR voting
+// contract
+func PLCRRevealVote(multisigAddress string, pollID *big.Int, vote bool, salt int64) (*types.Transaction, error) {
+	plcrAddress, err := GetPLCRContractAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	intVote := int64(0)
+	if vote {
+		intVote = 1
+	}
+
+	proxiedTX, err := newProxiedTransaction(
+		plcrAddress,
+		PLCRVotingABI,
+		"revealVote",
+		pollID,
+		big.NewInt(intVote),
+		big.NewInt(salt),
+	)
+
+	return submitTransaction(multisigAddress, proxiedTX)
 }

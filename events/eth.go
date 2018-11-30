@@ -12,8 +12,9 @@ import (
 const (
 	newApplicationWithHandleTweet    = "New #TCRParty listing! @%s has nominated @%s to be on the list for %s TCRP. Challenge this application by DMing 'challenge @%s'."
 	newApplicationWithoutHandleTweet = "New #TCRParty listing! @%s has been nominated to be on the list for %s TCRP. Challenge this application by DMing 'challenge @%s'."
-
-	newChallengeTweet = "New #TCRParty challenge! @%s's listing has been put to the test. Send me a DM with 'vote %s yes/no' to determine their fate."
+	newChallengeTweet                = "New #TCRParty challenge! @%s's listing has been put to the test. Send me a DM with 'vote %s yes/no' to determine their fate."
+	applicationWhitelistedTweet      = "@%s has been successfully added to the #TCRParty!"
+	challengeSucceededTweet          = "The challenge against @%s's listing succeeded! They're out of the #TCRParty."
 
 	initialTokenAmount = 50
 )
@@ -117,6 +118,39 @@ func processNewChallenge(event *ETHEvent) error {
 		challenge.Data,
 		challenge.Data,
 	)
+
+	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
+}
+
+func processApplicationWhitelisted(ethEvent *ETHEvent) error {
+	event, err := contracts.DecodeApplicationWhitelistedEvent(ethEvent.Topics, ethEvent.Data)
+	if err != nil {
+		return err
+	}
+
+	data, err := contracts.GetListingDataFromHash(event.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Application for %s whitelisted!", data)
+	tweet := fmt.Sprintf(applicationWhitelistedTweet, data)
+
+	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
+}
+
+func processChallengeSucceeded(ethEvent *ETHEvent) error {
+	event, err := contracts.DecodeChallengeSucceededEvent(ethEvent.Topics, ethEvent.Data)
+	if err != nil {
+	}
+
+	data, err := contracts.GetListingDataFromHash(event.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Challenge against %s succeeded!", data)
+	tweet := fmt.Sprintf(challengeSucceededTweet, data)
 
 	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
 }

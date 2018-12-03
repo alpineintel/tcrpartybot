@@ -14,7 +14,8 @@ const (
 	newApplicationWithoutHandleTweet = "New #TCRParty listing! @%s has been nominated to be on the list for %s TCRP. Challenge this application by DMing 'challenge @%s'."
 	newChallengeTweet                = "New #TCRParty challenge! @%s's listing has been put to the test. Send me a DM with 'vote %s yes/no' to determine their fate."
 	applicationWhitelistedTweet      = "@%s has been successfully added to the #TCRParty!"
-	challengeSucceededTweet          = "The challenge against @%s's listing succeeded! They're out of the #TCRParty."
+	applicationRemovedTweet          = "@%s has been removed from the #TCRParty."
+	challengeSucceededTweet          = "The challenge against @%s's listing succeeded!"
 
 	initialTokenAmount = 50
 )
@@ -142,6 +143,7 @@ func processApplicationWhitelisted(ethEvent *ETHEvent) error {
 func processChallengeSucceeded(ethEvent *ETHEvent) error {
 	event, err := contracts.DecodeChallengeSucceededEvent(ethEvent.Topics, ethEvent.Data)
 	if err != nil {
+		return err
 	}
 
 	data, err := contracts.GetListingDataFromHash(event.ListingHash)
@@ -151,6 +153,23 @@ func processChallengeSucceeded(ethEvent *ETHEvent) error {
 
 	log.Printf("Challenge against %s succeeded!", data)
 	tweet := fmt.Sprintf(challengeSucceededTweet, data)
+
+	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
+}
+
+func processApplicationRemoved(ethEvent *ETHEvent) error {
+	event, err := contracts.DecodeApplicationRemovedEvent(ethEvent.Topics, ethEvent.Data)
+	if err != nil {
+		return err
+	}
+
+	data, err := contracts.GetListingDataFromHash(event.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Application @%s removed!", data)
+	tweet := fmt.Sprintf(applicationRemovedTweet, data)
 
 	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
 }

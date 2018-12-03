@@ -21,6 +21,7 @@ const (
 	ETHEventNewMultisigWallet         = "ContractInstantiation"
 	ETHEventNewTCRApplication         = "_Application"
 	ETHEventTCRApplicationWhitelisted = "_ApplicationWhitelisted"
+	ETHEventTCRApplicationRemoved     = "_ApplicationRemoved"
 	ETHEventNewTCRChallenge           = "_Challenge"
 	ETHEventTCRChallengeSucceeded     = "_ChallengeSucceeded"
 	ETHEventNewMultisigSubmission     = "Submission"
@@ -78,6 +79,9 @@ func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
 			break
 		case ETHEventTCRApplicationWhitelisted:
 			err = processApplicationWhitelisted(event)
+			break
+		case ETHEventTCRApplicationRemoved:
+			err = processApplicationRemoved(event)
 			break
 		case ETHEventTCRChallengeSucceeded:
 			err = processChallengeSucceeded(event)

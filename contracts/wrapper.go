@@ -571,9 +571,6 @@ func PLCRCommitVote(multisigAddress string, pollID *big.Int, amount *big.Int, vo
 	hashing.Write(hashBytes)
 	secretHashBuf = hashing.Sum(secretHashBuf)
 
-	log.Printf("abi encoded: %x", hashBytes)
-	log.Printf("secret hash: %x", secretHashBuf)
-
 	// Convert from []byte to [32]byte
 	var secretHash [32]byte
 	copy(secretHash[:], secretHashBuf[0:32])

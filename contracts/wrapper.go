@@ -427,10 +427,16 @@ func GetAllListings() ([]*RegistryListing, error) {
 	}
 
 	var listings []*RegistryListing
+	seenListings := map[[32]byte]bool{}
 	for _, event := range logs {
 		// Get the listing hash
 		var listingHash [32]byte
 		copy(listingHash[:], event.Topics[1].Bytes()[0:32])
+
+		// If we've already seen this listing before, move on
+		if seenListings[listingHash] {
+			continue
+		}
 
 		// Make sure this listing still exists
 		listing, err := GetListingFromHash(listingHash)
@@ -441,6 +447,7 @@ func GetAllListings() ([]*RegistryListing, error) {
 		}
 
 		listings = append(listings, listing)
+		seenListings[listingHash] = true
 	}
 
 	return listings, nil

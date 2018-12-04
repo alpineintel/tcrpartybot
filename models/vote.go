@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -37,6 +38,27 @@ func CreateVote(account *Account, pollID int64, salt int64, voteVal bool) (*Vote
 
 	if err != nil {
 		return nil, err
+	}
+
+	return vote, nil
+}
+
+// FindVote returns a vote for a given poll or account ID
+func FindVote(pollID, accountID int64) (*Vote, error) {
+	db := GetDBSession()
+
+	vote := &Vote{}
+	err := db.Get(
+		vote,
+		"SELECT * FROM votes WHERE poll_id=$1 AND account_id=$2",
+		pollID,
+		accountID,
+	)
+
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
 	}
 
 	return vote, nil

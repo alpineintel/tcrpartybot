@@ -22,6 +22,7 @@ const (
 	votingListingNotFoundMsg   = "Hmm, I couldn't find a registry listing for that twitter handle. Are you sure they've been nominated to the registry?"
 	votingChallengeNotFoundMsg = "Looks like that twitter handle doesn't have a challenge opened on it yet. If you'd like to challenge their place on the registry respond with 'challenge %s'."
 	votingChallengeErrorMsg    = "There was an error committing your vote. The admins have been notified!"
+	votedAlreadyMsg            = "Oops! Looks like you've already voted %s on this challenge."
 	votingEndedMsg             = "Ack! Looks like the voting period has ended for this challenge. Hang tight, we'll announce the result on %s."
 	votingSuccessMsg           = "Your vote has been committed! Hang tight, we'll announce the results on %s."
 
@@ -418,6 +419,19 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	// Make sure we're still in the commit phase
 	if commitEndDate.Before(time.Now()) {
 		sendDM(fmt.Sprintf(votingEndedMsg, fmtRevealDate))
+		return nil
+	}
+
+	// Make sure they aren't voting twice
+	vote, err := models.FindVote(listing.ChallengeID.Int64(), account.ID)
+	if err != nil {
+		return err
+	} else if vote != nil {
+		voteValue := "yes"
+		if !vote.Vote {
+			voteValue = "no"
+		}
+		sendDM(fmt.Sprintf(votedAlreadyMsg, voteValue))
 		return nil
 	}
 

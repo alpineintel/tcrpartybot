@@ -69,10 +69,15 @@ func scheduleListing(application *contracts.RegistryListing, errChan chan<- erro
 
 		updateStatus(application, errChan)
 	} else if hasOpenChallenge {
-		log.Printf("[updater] Watching 0x%x", application.ListingHash)
 		// The listing has an open challenge, meaning we'll need to schedule
 		// tasks to reveal any votes and update the status
 		poll, err := contracts.GetPoll(application.ChallengeID)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		twitterHandle, err := contracts.GetListingDataFromHash(application.ListingHash)
 		if err != nil {
 			errChan <- err
 			return
@@ -83,11 +88,13 @@ func scheduleListing(application *contracts.RegistryListing, errChan chan<- erro
 		if commitEndTime.After(time.Now()) {
 			// We haven't yet hit the commit time, so let's sleep until we do
 			// and then reveal the vote
+			log.Printf("[updater] Challenge @%s is in commit. Sleeping until %s", twitterHandle, commitEndTime.Format(time.UnixDate))
 			time.Sleep(time.Until(commitEndTime) + (2 * time.Minute))
 		}
 
 		if revealEndTime.After(time.Now()) {
 			reveal(application, errChan)
+			log.Printf("[updater] Challenge @%s is in reveal. Sleeping until %s", twitterHandle, revealEndTime.Format(time.UnixDate))
 			time.Sleep(time.Until(revealEndTime) + (2 * time.Minute))
 		}
 

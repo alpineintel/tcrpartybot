@@ -89,13 +89,13 @@ func scheduleListing(application *contracts.RegistryListing, errChan chan<- erro
 			// We haven't yet hit the commit time, so let's sleep until we do
 			// and then reveal the vote
 			log.Printf("[updater] Challenge @%s is in commit. Sleeping until %s", twitterHandle, commitEndTime.Format(time.UnixDate))
-			time.Sleep(time.Until(commitEndTime) + (2 * time.Minute))
+			time.Sleep(time.Until(commitEndTime) + (15 * time.Second))
 		}
 
 		if revealEndTime.After(time.Now()) {
 			reveal(application, errChan)
 			log.Printf("[updater] Challenge @%s is in reveal. Sleeping until %s", twitterHandle, revealEndTime.Format(time.UnixDate))
-			time.Sleep(time.Until(revealEndTime) + (2 * time.Minute))
+			time.Sleep(time.Until(revealEndTime) + (15 * time.Second))
 		}
 
 		if revealEndTime.Before(time.Now()) {
@@ -140,10 +140,16 @@ func reveal(application *contracts.RegistryListing, errChan chan<- error) {
 }
 
 func updateStatus(application *contracts.RegistryListing, errChan chan<- error) {
-	log.Printf("[updater] Attempting to updateStatus of listing 0x%x", application.ListingHash)
+	twitterHandle, err := contracts.GetListingDataFromHash(application.ListingHash)
+	if err != nil {
+		errChan <- err
+		return
+	}
+	log.Printf("[updater] Attempting to updateStatus of listing %s", twitterHandle)
+
 	// Refresh the listing, just in case there was a delay before calling this
 	// function
-	application, err := contracts.GetListingFromHash(application.ListingHash)
+	application, err = contracts.GetListingFromHash(application.ListingHash)
 	if err != nil {
 		errChan <- err
 		return

@@ -65,9 +65,25 @@ func FindAccountByHandle(handle string) (*Account, error) {
 	return &account, nil
 }
 
-// FindAccountByID searches for a given account based on the provided ID or
-// returns nil if it cannot be found
+// FindAccountByID searches for an account based on a user ID (not twitter ID)
 func FindAccountByID(id int64) (*Account, error) {
+	db := GetDBSession()
+
+	account := Account{}
+	err := db.Get(&account, "SELECT * FROM accounts WHERE id=$1", id)
+
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	return &account, nil
+}
+
+// FindAccountByTwitterID searches for a given account based on the provided ID or
+// returns nil if it cannot be found
+func FindAccountByTwitterID(id int64) (*Account, error) {
 	db := GetDBSession()
 
 	account := Account{}

@@ -14,6 +14,11 @@ func SendTweet(handle string, message string) error {
 		return nil
 	}
 
+	log.Printf("Tweeting from %s: %s", handle, message)
+	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		return nil
+	}
+
 	_, _, err = client.Statuses.Update(message, nil)
 	return err
 }
@@ -23,6 +28,11 @@ func SendDM(recipientID int64, message string) error {
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {
 		return err
+	}
+
+	log.Printf("Sending DM to %d: %s", recipientID, message)
+	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		return nil
 	}
 
 	_, _, err = client.DirectMessages.EventsCreate(&twitter.DirectMessageEventsCreateParams{
@@ -35,7 +45,6 @@ func SendDM(recipientID int64, message string) error {
 		return err
 	}
 
-	log.Printf("Sent DM to %d: %s", recipientID, message)
 	return nil
 }
 

@@ -26,7 +26,7 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 
 func processRegistration(event *TwitterEvent, errChan chan<- error) {
 	// If they already have an account we don't need to continue
-	account, err := models.FindAccountByID(event.SourceID)
+	account, err := models.FindAccountByTwitterID(event.SourceID)
 	if account != nil {
 		return
 	} else if err != nil {

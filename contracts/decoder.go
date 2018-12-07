@@ -66,18 +66,8 @@ func DecodeContractInstantiationEvent(data []byte) (*MultiSigWalletFactoryContra
 // DecodeApplicationWhitelistedEvent decodes data from an ABI-encoded byte array
 // slice into a RegistryApplicationWhitelisted struct
 func DecodeApplicationWhitelistedEvent(topics []common.Hash, data []byte) (*RegistryApplicationWhitelisted, error) {
-	registryABI, err := abi.JSON(strings.NewReader(string(RegistryABI)))
-	if err != nil {
-		return nil, err
-	}
-
-	event := &RegistryApplicationWhitelisted{}
-	err = registryABI.Unpack(event, "_ApplicationWhitelisted", data)
-	if err != nil {
-		return nil, err
-	}
-
 	// Load in data from topics
+	event := &RegistryApplicationWhitelisted{}
 	copy(event.ListingHash[:], topics[1].Bytes()[0:32])
 
 	return event, nil

@@ -128,7 +128,6 @@ func main() {
 	}
 
 	twitterEventChan := make(chan *events.TwitterEvent)
-	ethEventChan := make(chan *events.ETHEvent)
 	errChan := make(chan error)
 
 	models.GetDBSession()
@@ -143,11 +142,16 @@ func main() {
 		log.Printf("Credentials for vip bot not found. Please authenticate!")
 	}
 
-	go events.ProcessTwitterEvents(twitterEventChan, errChan)
-	go events.ProcessETHEvents(ethEventChan, errChan)
-	go events.StartETHListener(ethEventChan, errChan)
-	go events.ScheduleUpdates(ethEventChan, errChan)
+	// Listen for and process any incoming twitter events
 	go api.StartServer(twitterEventChan, errChan)
+	go events.ProcessTwitterEvents(twitterEventChan, errChan)
+
+	// Look for any existing applications/challenges that may need to be updated
+	go events.ScheduleUpdates(errChan)
+
+	// Start listening for relevant events on the blockchain
+	go events.StartETHListener(errChan)
+
 	go logErrors(errChan)
 
 	beginRepl(twitterEventChan, errChan)

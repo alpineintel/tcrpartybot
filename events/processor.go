@@ -64,35 +64,32 @@ func ProcessTwitterEvents(eventChan <-chan *TwitterEvent, errorChan chan<- error
 }
 
 // ProcessETHEvents listens for blockchain events and fires a corresponding handler
-func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
-	for {
-		event := <-eventChan
-		var err error
+func processETHEvent(event *ETHEvent, errChan chan<- error) {
+	var err error
 
-		log.Printf("Found event %s", event.EventType)
-		switch event.EventType {
-		case ETHEventNewMultisigWallet:
-			err = processMultisigWalletCreation(event)
-			break
-		case ETHEventNewTCRApplication:
-			err = processNewApplication(event)
-			break
-		case ETHEventTCRApplicationWhitelisted:
-			err = processApplicationWhitelisted(event)
-			break
-		case ETHEventTCRApplicationRemoved:
-			err = processApplicationRemoved(event)
-			break
-		case ETHEventTCRChallengeSucceeded:
-			err = processChallengeSucceeded(event)
-			break
-		case ETHEventNewTCRChallenge:
-			err = processNewChallenge(event)
-			break
-		}
+	log.Printf("Found event %s", event.EventType)
+	switch event.EventType {
+	case ETHEventNewMultisigWallet:
+		err = processMultisigWalletCreation(event)
+		break
+	case ETHEventNewTCRApplication:
+		err = processNewApplication(event)
+		break
+	case ETHEventTCRApplicationWhitelisted:
+		err = processApplicationWhitelisted(event)
+		break
+	case ETHEventTCRApplicationRemoved:
+		err = processApplicationRemoved(event)
+		break
+	case ETHEventTCRChallengeSucceeded:
+		err = processChallengeSucceeded(event)
+		break
+	case ETHEventNewTCRChallenge:
+		err = processNewChallenge(event)
+		break
+	}
 
-		if err != nil {
-			errChan <- err
-		}
+	if err != nil {
+		errChan <- err
 	}
 }

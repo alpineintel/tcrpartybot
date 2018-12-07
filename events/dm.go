@@ -358,12 +358,19 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 		sendDM(challengeNotFoundMsg)
 		return nil
 	} else if listing.ChallengeID.Cmp(big.NewInt(0)) != 0 {
-		sendDM(fmt.Sprintf(challengeAlreadyExistsMsg, argv[1]))
-		return nil
+		challenge, err := contracts.GetChallenge(listing.ChallengeID)
+		if err != nil {
+			return err
+		}
+
+		if !challenge.Resolved {
+			sendDM(fmt.Sprintf(challengeAlreadyExistsMsg, argv[1]))
+			return nil
+		}
 	}
 
 	tokens := contracts.GetAtomicTokenAmount(depositAmount)
-	tx, err := contracts.Challenge(account.MultisigAddress.String, tokens, argv[1])
+	tx, err := contracts.CreateChallenge(account.MultisigAddress.String, tokens, argv[1])
 	if err != nil {
 		sendDM(challengeSubmissionErrorMsg)
 		return err

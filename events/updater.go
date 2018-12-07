@@ -14,7 +14,7 @@ import (
 // schedules tasks to fire their on-chain updater functions once they have
 // matured. Example: calling updateStatus on an application once the
 // application period has passed.
-func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
+func ScheduleUpdates(errChan chan<- error) {
 	// First let's instantiate ourselves with existing challenges/applications
 	// that need to be scheduled
 	listings, err := contracts.GetAllListings()
@@ -26,38 +26,51 @@ func ScheduleUpdates(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	for _, listing := range listings {
 		go scheduleListing(listing, errChan)
 	}
+}
 
-	// Listen for any incoming applications and queue them up
-	for {
-		event := <-eventChan
-		var err error
+func scheduleUpdateForEvent(event *ETHEvent, errChan chan<- error) {
+	var err error
+	var listing *contracts.RegistryListing
 
-		switch event.EventType {
-		case ETHEventNewTCRApplication:
-			ethEvent, err := contracts.DecodeApplicationEvent(event.Topics, event.Data)
-			if err != nil {
-				errChan <- err
-				continue
-			}
-
-			listing, err := contracts.GetListingFromHash(ethEvent.ListingHash)
-			if err != nil {
-				errChan <- err
-				continue
-			}
-
-			go scheduleListing(listing, errChan)
-			break
-		}
-
+	switch event.EventType {
+	case ETHEventNewTCRChallenge:
+		ethEvent, err := contracts.DecodeChallengeEvent(event.Topics, event.Data)
 		if err != nil {
 			errChan <- err
+			return
 		}
+
+		listing, err = contracts.GetListingFromHash(ethEvent.ListingHash)
+		break
+	case ETHEventNewTCRApplication:
+		ethEvent, err := contracts.DecodeApplicationEvent(event.Topics, event.Data)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		listing, err = contracts.GetListingFromHash(ethEvent.ListingHash)
+		break
+	}
+
+	if err != nil {
+		errChan <- err
+	} else if listing != nil {
+		scheduleListing(listing, errChan)
 	}
 }
 
 func scheduleListing(application *contracts.RegistryListing, errChan chan<- error) {
-	hasOpenChallenge := application.ChallengeID.Cmp(big.NewInt(0)) != 0
+	hasOpenChallenge := false
+
+	if application.ChallengeID.Cmp(big.NewInt(0)) != 0 {
+		challenge, err := contracts.GetChallenge(application.ChallengeID)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		hasOpenChallenge = challenge.Resolved == false
+	}
 
 	if !application.Whitelisted && !hasOpenChallenge {
 		// This listing hasn't been whitelisted yet and doesn't have an open
@@ -89,13 +102,17 @@ func scheduleListing(application *contracts.RegistryListing, errChan chan<- erro
 			// We haven't yet hit the commit time, so let's sleep until we do
 			// and then reveal the vote
 			log.Printf("[updater] Challenge @%s is in commit. Sleeping until %s", twitterHandle, commitEndTime.Format(time.UnixDate))
-			time.Sleep(time.Until(commitEndTime) + (15 * time.Second))
+			time.Sleep(time.Until(commitEndTime) + (30 * time.Second))
 		}
 
 		if revealEndTime.After(time.Now()) {
 			reveal(application, errChan)
+			if err != nil {
+				errChan <- err
+				return
+			}
 			log.Printf("[updater] Challenge @%s is in reveal. Sleeping until %s", twitterHandle, revealEndTime.Format(time.UnixDate))
-			time.Sleep(time.Until(revealEndTime) + (15 * time.Second))
+			time.Sleep(time.Until(revealEndTime) + (30 * time.Second))
 		}
 
 		if revealEndTime.Before(time.Now()) {

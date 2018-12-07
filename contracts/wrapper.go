@@ -45,6 +45,15 @@ type Poll struct {
 	VotesAgainst  *big.Int
 }
 
+// Challenge represents the challenge struct on the Registry contract
+type Challenge struct {
+	RewardPool  *big.Int
+	Challenger  common.Address
+	Resolved    bool
+	Stake       *big.Int
+	TotalTokens *big.Int
+}
+
 const (
 	// TokenDecimals is the number you can multiply/divide by in order to
 	// arrive at a human readable TCRP balance
@@ -187,8 +196,8 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 	return tx, err
 }
 
-// Challenge initiates a new challenge against the given twitter handle
-func Challenge(multisigAddress string, amount *big.Int, twitterHandle string) (*types.Transaction, error) {
+// CreateChallenge initiates a new challenge against the given twitter handle
+func CreateChallenge(multisigAddress string, amount *big.Int, twitterHandle string) (*types.Transaction, error) {
 	// First let's approve `amount` tokens for spending by the TCR
 	approvalTX, err := TCRPApprove(multisigAddress, os.Getenv("TCR_ADDRESS"), amount)
 	if err != nil {
@@ -499,6 +508,27 @@ func GetPoll(pollID *big.Int) (*Poll, error) {
 
 	poll := Poll(pollData)
 	return &poll, nil
+}
+
+// GetChallenge returns a challenge struct given its ID
+func GetChallenge(challengeID *big.Int) (*Challenge, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	registry, err := NewRegistry(common.HexToAddress(os.Getenv("TCR_ADDRESS")), client)
+	if err != nil {
+		return nil, err
+	}
+
+	challengeData, err := registry.Challenges(nil, challengeID)
+	if err != nil {
+		return nil, err
+	}
+
+	challenge := Challenge(challengeData)
+	return &challenge, nil
 }
 
 // PLCRDeposit locks up a number of tokens in the TCR's PLCR voting contract

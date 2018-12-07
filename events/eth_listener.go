@@ -51,7 +51,7 @@ func generateContracts() ([]*watchedContract, error) {
 }
 
 // StartETHListener begins listening for relevant events on the ETH blockchain
-func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
+func StartETHListener(errChan chan<- error) {
 	client, err := contracts.GetClientSession()
 	if err != nil {
 		errChan <- err
@@ -82,7 +82,7 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 
 	// Begin the watching loop
 	for {
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 
 		// Get the previously synced block number
 		val, err := models.GetKey(models.LatestSyncedBlockKey)
@@ -106,16 +106,10 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 			errChan <- err
 		}
 
-		// Do we need to sync?
-		if latestBlock.Number.Cmp(blockCursor) == 0 {
-			continue
-		}
-
 		// The filter is inclusive, therefore we should add 1 to the last seen block
 		query.FromBlock = blockCursor.Add(blockCursor, big.NewInt(1))
-		query.ToBlock = latestBlock.Number
 
-		// Finally, query the ETH node for any interesting events
+		// Query the ETH node for any interesting events
 		logs, err := client.FilterLogs(context.Background(), query)
 		if err != nil {
 			errChan <- err
@@ -131,11 +125,14 @@ func StartETHListener(eventChan chan<- *ETHEvent, errChan chan<- error) {
 				}
 
 				// We've found one! Let's submit it to our event channel
-				eventChan <- &ETHEvent{
+				event := &ETHEvent{
 					EventType: eventName,
 					Data:      ethLog.Data,
 					Topics:    ethLog.Topics,
 				}
+
+				go processETHEvent(event, errChan)
+				go scheduleUpdateForEvent(event, errChan)
 			}
 		}
 

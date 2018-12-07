@@ -22,8 +22,10 @@ const (
 	ETHEventNewTCRApplication         = "_Application"
 	ETHEventTCRApplicationWhitelisted = "_ApplicationWhitelisted"
 	ETHEventTCRApplicationRemoved     = "_ApplicationRemoved"
+	ETHEventTCRListingRemoved         = "_ListingRemoved"
 	ETHEventNewTCRChallenge           = "_Challenge"
 	ETHEventTCRChallengeSucceeded     = "_ChallengeSucceeded"
+	ETHEventTCRChallengeFailed        = "_ChallengeFailed"
 	ETHEventNewMultisigSubmission     = "Submission"
 )
 
@@ -83,6 +85,9 @@ func processETHEvent(event *ETHEvent, errChan chan<- error) {
 		break
 	case ETHEventTCRChallengeSucceeded:
 		err = processChallengeSucceeded(event)
+		break
+	case ETHEventTCRChallengeFailed:
+		err = processChallengeFailed(event)
 		break
 	case ETHEventNewTCRChallenge:
 		err = processNewChallenge(event)

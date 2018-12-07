@@ -72,12 +72,19 @@ func scheduleListing(application *contracts.RegistryListing, errChan chan<- erro
 		hasOpenChallenge = challenge.Resolved == false
 	}
 
+	twitterHandle, err := contracts.GetListingDataFromHash(application.ListingHash)
+	if err != nil {
+		errChan <- err
+		return
+	}
+
 	if !application.Whitelisted && !hasOpenChallenge {
 		// This listing hasn't been whitelisted yet and doesn't have an open
 		// challenge. This means we'll need to schedule a updateStatus task
 		expirationTime := time.Unix(application.ApplicationExpiry.Int64(), 0)
 		if expirationTime.After(time.Now()) {
-			time.Sleep(time.Until(expirationTime))
+			log.Printf("[updater] Application @%s is in progress. Sleeping until %s", twitterHandle, expirationTime.Format(time.UnixDate))
+			time.Sleep(time.Until(expirationTime) + (30 * time.Second))
 		}
 
 		updateStatus(application, errChan)
@@ -85,12 +92,6 @@ func scheduleListing(application *contracts.RegistryListing, errChan chan<- erro
 		// The listing has an open challenge, meaning we'll need to schedule
 		// tasks to reveal any votes and update the status
 		poll, err := contracts.GetPoll(application.ChallengeID)
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		twitterHandle, err := contracts.GetListingDataFromHash(application.ListingHash)
 		if err != nil {
 			errChan <- err
 			return

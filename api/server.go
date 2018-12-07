@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"gitlab.com/alpinefresh/tcrpartybot/events"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"log"
@@ -75,20 +74,20 @@ func (server *Server) processDMs(dms []incomingDM) {
 			continue
 		}
 
-		account, err := models.FindAccountByID(fromID)
+		account, err := models.FindAccountByTwitterID(fromID)
+		sourceHandle := ""
 		if err != nil {
 			server.errChan <- err
 			continue
-		} else if account == nil {
-			server.errChan <- errors.New("Could not find account for incoming DM")
-			continue
+		} else if account != nil {
+			sourceHandle = account.TwitterHandle
 		}
 
 		server.eventsChan <- &events.TwitterEvent{
 			EventType:    events.TwitterEventTypeDM,
 			Time:         time.Now(),
-			SourceHandle: account.TwitterHandle,
-			SourceID:     account.TwitterID,
+			SourceHandle: sourceHandle,
+			SourceID:     fromID,
 			Message:      dm.MessageCreated.MessageData.Text,
 		}
 	}

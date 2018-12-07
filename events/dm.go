@@ -18,6 +18,8 @@ import (
 )
 
 const (
+	noAccountMsg = "Hmm, I haven't met you yet. If you want to join the TCR party send me a tweet that says \"let's party\""
+
 	votingArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'vote [twitter handle] yes' or 'vote [twitter handle] no'"
 	votingListingNotFoundMsg   = "Hmm, I couldn't find a registry listing for that twitter handle. Are you sure they've been nominated to the registry?"
 	votingChallengeNotFoundMsg = "Looks like that twitter handle doesn't have a challenge opened on it yet. If you'd like to challenge their place on the registry respond with 'challenge %s'."
@@ -125,17 +127,18 @@ func ListenForTwitterDM(handle string, eventChan chan<- *TwitterEvent, errChan c
 func processDM(event *TwitterEvent, errChan chan<- error) {
 	log.Printf("Received DM from %s: %s", event.SourceHandle, event.Message)
 
-	// If they don't have an acccount, do nothing.
-	account, err := models.FindAccountByHandle(event.SourceHandle)
-	if account == nil || err != nil {
-		return
-	}
-
 	sendDM := func(message string) {
-		err := twitter.SendDM(account.TwitterID, message)
+		err := twitter.SendDM(event.SourceID, message)
 		if err != nil {
 			errChan <- err
 		}
+	}
+
+	// If they don't have an acccount, do nothing.
+	account, err := models.FindAccountByHandle(event.SourceHandle)
+	if account == nil || err != nil {
+		sendDM(noAccountMsg)
+		return
 	}
 
 	// If they're already registered they're trying to send some kind of
@@ -387,7 +390,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return nil
 	}
 
-	if argv[2] != "yes" && argv[2] != "no" {
+	if argv[2] != "keep" && argv[2] != "kick" {
 		sendDM(votingArgErrorMsg)
 		return nil
 	}
@@ -434,15 +437,15 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	if err != nil {
 		return err
 	} else if vote != nil {
-		voteValue := "yes"
+		voteValue := "keep"
 		if !vote.Vote {
-			voteValue = "no"
+			voteValue = "kick"
 		}
 		sendDM(fmt.Sprintf(votedAlreadyMsg, voteValue))
 		return nil
 	}
 
-	voteValue := argv[2] == "yes"
+	voteValue := argv[2] == "keep"
 	salt, _, err := contracts.PLCRCommitVote(account.MultisigAddress.String, listing.ChallengeID, big.NewInt(voteAmount), voteValue)
 	if err != nil {
 		return err

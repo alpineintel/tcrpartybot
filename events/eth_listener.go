@@ -51,7 +51,7 @@ func generateContracts() ([]*watchedContract, error) {
 }
 
 // StartETHListener begins listening for relevant events on the ETH blockchain
-func StartETHListener(errChan chan<- error) {
+func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 	client, err := contracts.GetClientSession()
 	if err != nil {
 		errChan <- err
@@ -131,6 +131,7 @@ func StartETHListener(errChan chan<- error) {
 					Topics:    ethLog.Topics,
 				}
 
+				ethEvents <- event
 				go processETHEvent(event, errChan)
 				go scheduleUpdateForEvent(event, errChan)
 			}

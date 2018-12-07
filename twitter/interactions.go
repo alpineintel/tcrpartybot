@@ -9,7 +9,7 @@ import (
 
 // FilterTweets will begin filtering tweets and outputting them to the returned
 // channel
-func FilterTweets(sinceID int64, twitterHandles []string) (*twitter.Stream, <-chan *twitter.Tweet, error) {
+func FilterTweets(twitterHandles []string) (*twitter.Stream, <-chan *twitter.Tweet, error) {
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {
 		return nil, nil, err

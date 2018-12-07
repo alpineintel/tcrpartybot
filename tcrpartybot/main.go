@@ -142,16 +142,18 @@ func main() {
 		log.Printf("Credentials for vip bot not found. Please authenticate!")
 	}
 
+	ethEvents := make(chan *events.ETHEvent)
+
 	// Listen for and process any incoming twitter events
 	go api.StartServer(twitterEventChan, errChan)
 	go events.ProcessTwitterEvents(twitterEventChan, errChan)
-	go events.ListenAndRetweet(errChan)
+	go events.ListenAndRetweet(ethEvents, errChan)
 
 	// Look for any existing applications/challenges that may need to be updated
 	go events.ScheduleUpdates(errChan)
 
 	// Start listening for relevant events on the blockchain
-	go events.StartETHListener(errChan)
+	go events.StartETHListener(ethEvents, errChan)
 
 	go logErrors(errChan)
 

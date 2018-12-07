@@ -113,3 +113,24 @@ func DecodeChallengeSucceededEvent(topics []common.Hash, data []byte) (*Registry
 
 	return event, nil
 }
+
+// DecodeChallengeFailedEvent decodes data from an ABI-encoded byte array
+// slice into a RegistryChallengeFailed struct
+func DecodeChallengeFailedEvent(topics []common.Hash, data []byte) (*RegistryChallengeFailed, error) {
+	registryABI, err := abi.JSON(strings.NewReader(string(RegistryABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	event := &RegistryChallengeFailed{}
+	err = registryABI.Unpack(event, "_ChallengeFailed", data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load in data from topics
+	copy(event.ListingHash[:], topics[1].Bytes()[0:32])
+	event.ChallengeID = topics[2].Big()
+
+	return event, nil
+}

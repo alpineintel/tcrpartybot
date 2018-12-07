@@ -145,6 +145,7 @@ func main() {
 	// Listen for and process any incoming twitter events
 	go api.StartServer(twitterEventChan, errChan)
 	go events.ProcessTwitterEvents(twitterEventChan, errChan)
+	go events.ListenAndRetweet(errChan)
 
 	// Look for any existing applications/challenges that may need to be updated
 	go events.ScheduleUpdates(errChan)

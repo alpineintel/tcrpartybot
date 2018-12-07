@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+func processFollow(event *TwitterEvent, errChan chan<- error) {
+	err := twitter.Follow(event.SourceID)
+	if err != nil {
+		errChan <- err
+	}
+}
+
 func processMention(event *TwitterEvent, errChan chan<- error) {
 	if strings.ToLower(event.SourceHandle) == os.Getenv("PARTY_BOT_HANDLE") {
 		return

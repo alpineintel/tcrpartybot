@@ -7,6 +7,68 @@ import (
 	"strconv"
 )
 
+// FilterTweets will begin filtering tweets and outputting them to the returned
+// channel
+func FilterTweets(sinceID int64, twitterHandles []string) (*twitter.Stream, <-chan *twitter.Tweet, error) {
+	client, _, err := GetClientFromHandle(VIPBotHandle)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.Println("Filtering tweets by:")
+	twitterIDs := make([]string, len(twitterHandles))
+	for _, handle := range twitterHandles {
+		user, _, err := client.Users.Show(&twitter.UserShowParams{
+			ScreenName: handle,
+		})
+
+		if err != nil {
+			return nil, nil, err
+		}
+
+		twitterIDs = append(twitterIDs, strconv.FormatInt(user.ID, 10))
+		log.Printf("\t%s (%d)", user.ScreenName, user.ID)
+	}
+
+	params := &twitter.StreamFilterParams{
+		Follow: twitterIDs,
+	}
+
+	stream, err := client.Streams.Filter(params)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Start listening on a separate goroutine
+	tweetChan := make(chan *twitter.Tweet)
+	go func() {
+		demux := twitter.NewSwitchDemux()
+		demux.Tweet = func(tweet *twitter.Tweet) {
+			tweetChan <- tweet
+		}
+
+		defer close(tweetChan)
+		demux.HandleChan(stream.Messages)
+	}()
+
+	return stream, tweetChan, nil
+}
+
+// Retweet creates a new RT of the given tweet ID
+func Retweet(handle string, tweetID int64) error {
+	client, _, err := GetClientFromHandle(handle)
+	if err != nil {
+		return nil
+	}
+
+	log.Printf("Retweeting from %s: %d", handle, tweetID)
+	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		return nil
+	}
+	_, _, err = client.Statuses.Retweet(tweetID, nil)
+	return err
+}
+
 // SendTweet sends a new tweet from the given handle constant
 func SendTweet(handle string, message string) error {
 	client, _, err := GetClientFromHandle(handle)

@@ -6,6 +6,7 @@ import (
 
 const (
 	LatestSyncedBlockKey = "LatestSyncedBlock"
+	LatestSyncedTweetKey = "LatestSyncedTweet"
 )
 
 type keyValueRow struct {

@@ -462,6 +462,24 @@ func GetAllListings() ([]*RegistryListing, error) {
 	return listings, nil
 }
 
+// GetWhitelistedListings returns a list of all listings that are active
+// members of the TCR.
+func GetWhitelistedListings() ([]*RegistryListing, error) {
+	listings, err := GetAllListings()
+	if err != nil {
+		return nil, err
+	}
+
+	var activeListings []*RegistryListing
+	for _, listing := range listings {
+		if listing.Whitelisted {
+			activeListings = append(activeListings, listing)
+		}
+	}
+
+	return activeListings, nil
+}
+
 // UpdateStatus calls the updateStatus method on the registry contract,
 // allowing a listing past its application period to be promoted to a
 // whitelisted listing.

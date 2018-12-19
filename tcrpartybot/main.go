@@ -16,16 +16,13 @@ import (
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Could not open .env file")
-	}
+	godotenv.Load()
 
 	// Start the db connection pool
 	models.GetDBSession()
 
 	// Check to see if we have credentials for the two twitter handles
-	_, err = models.FindOAuthTokenByHandle(os.Getenv("PARTY_BOT_HANDLE"))
+	_, err := models.FindOAuthTokenByHandle(os.Getenv("PARTY_BOT_HANDLE"))
 	if err != nil {
 		log.Printf("Credentials for party bot not found. Please authenticate!")
 	}

@@ -15,8 +15,8 @@ const (
 	newChallengeTweet                = "New #TCRParty challenge! @%s's listing has been put to the test. Send me a DM with 'vote %s keep/kick' to determine their fate."
 	applicationWhitelistedTweet      = "@%s has been successfully added to the #TCRParty!"
 	applicationRemovedTweet          = "@%s has been removed from the #TCRParty."
-	challengeSucceededTweet          = "The challenge against @%s's listing succeeded!"
-	challengeFailedTweet             = "The challenge against @%s's listing failed!"
+	challengeSucceededTweet          = "The challenge against @%s's listing succeeded! They're out of the party."
+	challengeFailedTweet             = "The challenge against @%s's listing failed! Their spot in the party remains."
 
 	initialTokenAmount = 50
 )

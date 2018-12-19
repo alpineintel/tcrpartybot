@@ -185,7 +185,7 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	}
 
 	http.HandleFunc("/webhooks/twitter", server.handleTwitterWebhook)
-	err := http.ListenAndServe(os.Getenv("SERVER_HOST"), nil)
+	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {
 		errChan <- err
 	}

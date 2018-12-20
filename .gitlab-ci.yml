@@ -8,8 +8,7 @@ heroku:
         entrypoint: ["/bin/sh", "-c"]
     stage: deploy
     script:
-        - git remote add heroku "https://$HEROKU_AUTH@git.heroku.com/tcrpartybot.git"
-        - git push -f heroku master
+        - git push -f "https://$HEROKU_AUTH@git.heroku.com/tcrpartybot.git" $CI_COMMIT_REF_NAME:master
 
 migration:
     image: migrate/migrate

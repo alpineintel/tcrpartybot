@@ -2,16 +2,23 @@ stages:
     - deploy
     - migrate
 
-heroku:
-    image:
-        name: alpine/git
-        entrypoint: ["/bin/sh", "-c"]
-    stage: deploy
-    script:
-        - git push -f "https://$HEROKU_AUTH@git.heroku.com/tcrpartybot.git" master
-
 migration:
     image: migrate/migrate
     stage: migrate
     script:
         - migrate -source file://./migrations -database "$DATABASE" up
+
+production:
+    stage: deploy
+    script:
+        - echo "deb http://toolbelt.heroku.com/ubuntu ./" > /etc/apt/sources.list.d/heroku.list
+        - wget -O- https://toolbelt.heroku.com/apt/release.key | apt-key add -
+        - apt-get update
+        - apt-get install -y heroku-toolbelt
+        - gem install dpl
+        - dpl --provider=heroku --app=$HEROKU_APP_NAME --api-key=$HEROKU_API_KEY
+    environment:
+        name: production
+        url: $PRODUCTION_URL
+    only:
+        - master

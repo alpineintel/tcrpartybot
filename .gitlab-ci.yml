@@ -4,6 +4,7 @@ stages:
 
 production:
     stage: deploy
+    image: ruby:2.4.0
     script:
         - echo "deb http://toolbelt.heroku.com/ubuntu ./" > /etc/apt/sources.list.d/heroku.list
         - wget -O- https://toolbelt.heroku.com/apt/release.key | apt-key add -

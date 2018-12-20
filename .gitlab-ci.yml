@@ -17,7 +17,9 @@ production:
         url: $PRODUCTION_URL
 
 migration:
-    image: migrate/migrate
+    image:
+        name: migrate/migrate
+        entrypoint: ["/bin/sh", "-c"]
     stage: migrate
     script:
         - migrate -source file://./migrations -database "$DATABASE" up

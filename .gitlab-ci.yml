@@ -2,12 +2,6 @@ stages:
     - deploy
     - migrate
 
-migration:
-    image: migrate/migrate
-    stage: migrate
-    script:
-        - migrate -source file://./migrations -database "$DATABASE" up
-
 production:
     stage: deploy
     script:
@@ -20,5 +14,9 @@ production:
     environment:
         name: production
         url: $PRODUCTION_URL
-    only:
-        - master
+
+migration:
+    image: migrate/migrate
+    stage: migrate
+    script:
+        - migrate -source file://./migrations -database "$DATABASE" up

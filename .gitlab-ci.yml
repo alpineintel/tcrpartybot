@@ -3,7 +3,9 @@ stages:
     - migrate
 
 heroku:
-    image: alpine/git
+    image:
+        name: alpine/git
+        entrypoint: ["/bin/sh"]
     stage: deploy
     script:
         - git remote add heroku "https://heroku:$HEROKU_API_KEY@git.heroku.com/tcrpartybot.git"

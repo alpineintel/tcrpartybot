@@ -2,14 +2,14 @@ stages:
     - deploy
     - migrate
 
-production:
+heroku:
     image: wingrunr21/alpine-heroku-cli:7.4.11
     stage: deploy
     script:
         - git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/tcrpartybot.git
         - git push -f heroku master
 
-production:
+migration:
     image: migrate/migrate
     stage: migrate
     script:

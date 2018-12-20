@@ -22,4 +22,4 @@ migration:
         entrypoint: ["/bin/sh", "-c"]
     stage: migrate
     script:
-        - migrate -source file://./migrations -database "$DATABASE" up
+        - /migrate -source file://./migrations -database "$DATABASE" up

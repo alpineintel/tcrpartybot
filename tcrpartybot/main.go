@@ -40,6 +40,8 @@ func main() {
 	// Listen for and process any incoming twitter events
 	go api.StartServer(twitterEventChan, errChan)
 	go events.ProcessTwitterEvents(twitterEventChan, errChan)
+
+	// Listen on Twitter and ETH to determine who/when to retweet
 	go events.ListenAndRetweet(ethEvents, errChan)
 
 	// Look for any existing applications/challenges that may need to be updated
@@ -50,7 +52,6 @@ func main() {
 
 	startRepl := flag.Bool("repl", false, "Starts the debug REPL")
 	flag.Parse()
-
 	if *startRepl {
 		go logErrors(errChan)
 		beginRepl(twitterEventChan, errChan)

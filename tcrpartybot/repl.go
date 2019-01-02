@@ -20,7 +20,6 @@ const (
 	auth-vip                               - Begins auth bot auth flow
 	auth-party                             - Begins retweet bot auth flow
 	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot
-	create-webhook                         - Creates a webhook for listening on DMs
 	distribute                             - Distributes tokens to all pre-registered accounts
 	deploy-wallet                          - Calls the MultisigWalletFactory contract [for debugging]`
 )
@@ -53,10 +52,6 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 			break
 		case "auth-party":
 			authenticateHandle(os.Getenv("PARTY_BOT_HANDLE"), errChan)
-			break
-
-		case "create-webhook":
-			createWebhook(errChan)
 			break
 
 		case "deploy-wallet":

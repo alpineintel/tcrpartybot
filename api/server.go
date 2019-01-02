@@ -5,13 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"gitlab.com/alpinefresh/tcrpartybot/events"
-	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"gitlab.com/alpinefresh/tcrpartybot/events"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
+	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
 
 type incomingDM struct {
@@ -177,6 +179,39 @@ func (server *Server) handleTwitterWebhook(w http.ResponseWriter, r *http.Reques
 	w.Write([]byte("OK"))
 }
 
+func (server *Server) createWebhook(w http.ResponseWriter, r *http.Request) {
+	webhookID, err := models.GetKey("webhookID")
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	// If we don't already have a webhook ID we should create it
+	if webhookID == "" {
+		id, err := twitter.CreateWebhook()
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error: " + err.Error()))
+			return
+		}
+
+		log.Printf("Webhook %s created successfully", id)
+		models.SetKey("webhookID", id)
+	}
+
+	// And subscribe to TCRPartyVIP's DMs
+	if err := twitter.CreateSubscription(); err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	log.Printf("Subscription created successfully")
+	w.WriteHeader(200)
+	w.Write([]byte("OK"))
+}
+
 // StartServer spins up a webserver for the API
 func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *Server {
 	server := &Server{
@@ -185,6 +220,8 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	}
 
 	http.HandleFunc("/webhooks/twitter", server.handleTwitterWebhook)
+	http.HandleFunc("/admin/create-webhook", requireAuth(server.createWebhook))
+
 	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {
 		errChan <- err

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
-	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
 )
@@ -43,33 +42,6 @@ func authenticateHandle(handle string, errChan chan<- error) {
 	}
 
 	log.Println("Access token saved!")
-}
-
-func createWebhook(errChan chan<- error) {
-	webhookID, err := models.GetKey("webhookID")
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	// If we don't already have a webhook ID we should create it
-	if webhookID == "" {
-		id, err := twitter.CreateWebhook()
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		log.Printf("Webhook %s created successfully", id)
-		models.SetKey("webhookID", id)
-	}
-
-	// And subscribe to TCRPartyVIP's DMs
-	if err := twitter.CreateSubscription(); err != nil {
-		errChan <- err
-		return
-	}
-	log.Printf("Subscription created successfully")
 }
 
 func deployWallet(errChan chan<- error) {

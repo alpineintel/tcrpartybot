@@ -14,7 +14,7 @@ func GetDBSession() *sqlx.DB {
 		return pool
 	}
 
-	session, err := sqlx.Open("postgres", os.Getenv("DATABASE"))
+	session, err := sqlx.Open("postgres", os.Getenv("DATABASE_URL"))
 
 	if err != nil {
 		log.Fatalf("Could not connect to specified database: %s", err)

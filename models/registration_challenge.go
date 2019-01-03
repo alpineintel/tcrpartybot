@@ -101,6 +101,10 @@ func FindUnsentChallenge(accountId int64) (*RegistrationChallengeRegistrationQue
 		LIMIT 1
 	`, accountId)
 
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+
 	return challenge, err
 }
 

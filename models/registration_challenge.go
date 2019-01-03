@@ -105,7 +105,7 @@ func FindUnsentChallenge(accountId int64) (*RegistrationChallengeRegistrationQue
 		return nil, err
 	}
 
-	return challenge, err
+	return challenge, nil
 }
 
 func FindIncompleteChallenge(accountId int64) (*RegistrationChallengeRegistrationQuestion, error) {
@@ -132,5 +132,5 @@ func FindIncompleteChallenge(accountId int64) (*RegistrationChallengeRegistratio
 		return nil, err
 	}
 
-	return challenge, err
+	return challenge, nil
 }

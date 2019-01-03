@@ -187,7 +187,7 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 
 func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 	// Check to see if they've responded with the correct answer
-	if data.Event.Message != data.Challenge.Answer {
+	if strings.ToLower(data.Event.Message) != strings.ToLower(data.Challenge.Answer) {
 		response := fmt.Sprintf(invalidChallengeResponseMsg, data.Challenge.Question)
 		err := twitter.SendDM(data.Account.TwitterID, response)
 		if err != nil {

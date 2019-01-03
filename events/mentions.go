@@ -34,6 +34,7 @@ func processFollow(event *TwitterEvent, errChan chan<- error) {
 			return
 		}
 
+		// Nope, let's find them their next unsent challenge
 		if activeChallenge == nil {
 			activeChallenge, err = models.FindUnsentChallenge(account.ID)
 			if err != nil {
@@ -42,6 +43,7 @@ func processFollow(event *TwitterEvent, errChan chan<- error) {
 			}
 		}
 
+		// Still no challenge question? Okay let's abort...
 		if activeChallenge == nil {
 			log.Printf("Could not find active challenge for user %s, aborting follow DM response!", event.SourceHandle)
 			return

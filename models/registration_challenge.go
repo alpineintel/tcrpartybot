@@ -103,6 +103,8 @@ func FindUnsentChallenge(accountId int64) (*RegistrationChallengeRegistrationQue
 
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
 	}
 
 	return challenge, nil
@@ -130,6 +132,8 @@ func FindIncompleteChallenge(accountId int64) (*RegistrationChallengeRegistratio
 
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
 	}
 
 	return challenge, nil

@@ -1,10 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -212,6 +214,68 @@ func (server *Server) createWebhook(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
+func (server *Server) authenticateVIP(w http.ResponseWriter, r *http.Request) {
+	reqToken, err := models.GetKey(models.TwitterRequestTokenKey)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	if reqToken == "" {
+		request := &twitter.OAuthRequest{
+			Handle: twitter.VIPBotHandle,
+		}
+
+		url, err := request.GetOAuthURL()
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error: " + err.Error()))
+			return
+		}
+
+		err = models.SetKey(models.TwitterRequestTokenKey, request.RequestToken)
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error: " + err.Error()))
+			return
+		}
+
+		w.WriteHeader(200)
+		w.Write([]byte(fmt.Sprintf("Go to %s to get pin", url)))
+	} else {
+		// Convert body to string (this will be our PIN)
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(r.Body)
+		pin := buf.String()
+
+		// Authenticate with Twitter
+		request := &twitter.OAuthRequest{
+			Handle:       twitter.VIPBotHandle,
+			RequestToken: reqToken,
+			PIN:          pin,
+		}
+
+		if err = request.ReceivePIN(); err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error: " + err.Error()))
+			return
+		}
+
+		if err = models.ClearKey(models.TwitterRequestTokenKey); err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error: " + err.Error()))
+			return
+		}
+
+		w.WriteHeader(200)
+		w.Write([]byte("Success!"))
+	}
+}
+
+func (server *Server) authenticateParty(w http.ResponseWriter, r *http.Request) {
+}
+
 // StartServer spins up a webserver for the API
 func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *Server {
 	server := &Server{
@@ -221,6 +285,8 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 
 	http.HandleFunc("/webhooks/twitter", server.handleTwitterWebhook)
 	http.HandleFunc("/admin/create-webhook", requireAuth(server.createWebhook))
+	http.HandleFunc("/admin/authenticate-vip", requireAuth(server.authenticateVIP))
+	http.HandleFunc("/admin/authenticate-party", requireAuth(server.authenticateParty))
 
 	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {

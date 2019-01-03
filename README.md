@@ -8,6 +8,7 @@ _More docs to come..._
 
 ## Environment variables
 ```bash
+API_TOKEN_HASH='some-bcrypt-hash-here'
 VIP_BOT_HANDLE=tcrpartyvip
 PARTY_BOT_HANDLE=tcrpartybot
 DATABASE_URI=data.db

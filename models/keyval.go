@@ -5,8 +5,9 @@ import (
 )
 
 const (
-	LatestSyncedBlockKey = "LatestSyncedBlock"
-	LatestSyncedTweetKey = "LatestSyncedTweet"
+	LatestSyncedBlockKey   = "LatestSyncedBlock"
+	LatestSyncedTweetKey   = "LatestSyncedTweet"
+	TwitterRequestTokenKey = "TwitterRequestToken"
 )
 
 type keyValueRow struct {
@@ -39,4 +40,18 @@ func GetKey(key string) (string, error) {
 	}
 
 	return row.Value, nil
+}
+
+// ClearKey removes the given key's row from the database
+func ClearKey(key string) error {
+	db := GetDBSession()
+
+	row := &keyValueRow{}
+	err := db.Get(row, "DELETE FROM keyval_store WHERE key=$1 LIMIT 1", key)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

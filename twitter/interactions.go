@@ -112,6 +112,11 @@ func SendDM(recipientID int64, message string) error {
 
 // Follow will create a new friendship with the given user ID
 func Follow(userID int64) error {
+	log.Printf("Following Twitter user with ID %d", userID)
+	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		return nil
+	}
+
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 
 	follow := true
@@ -121,6 +126,38 @@ func Follow(userID int64) error {
 	}
 	_, _, err = client.Friendships.Create(params)
 	return err
+}
+
+// IsFollower will return true if the given userID is a follower of the VIP bot
+func IsFollower(userID int64) (bool, error) {
+	client, _, err := GetClientFromHandle(VIPBotHandle)
+	if err != nil {
+		return false, err
+	}
+
+	var nextCursor int64 = -1
+	for {
+		followers, _, err := client.Followers.List(&twitter.FollowerListParams{
+			Cursor: nextCursor,
+		})
+
+		if err != nil {
+			return false, err
+		}
+
+		for _, user := range followers.Users {
+			if user.ID == userID {
+				return true, nil
+			}
+		}
+
+		// Do we need to iterate on our follower list?
+		if followers.NextCursor == 0 {
+			break
+		}
+	}
+
+	return false, nil
 }
 
 // CreateWebhook creates a new webhook and subscribes it to the user, allowing

@@ -2,6 +2,7 @@ package events
 
 import (
 	"errors"
+	"fmt"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
@@ -9,10 +10,54 @@ import (
 	"strings"
 )
 
+const (
+	welcomeMsg        = "Welcome to the party! Before we put you on the VIP list, we need to make sure you're a human. Here's an easy question for you: %s"
+	notFollowingTweet = "@%s Hey! In order for us to get started I'll need you to follow me, otherwise we can't interact via DM."
+)
+
 func processFollow(event *TwitterEvent, errChan chan<- error) {
+	// Follow them back
 	err := twitter.Follow(event.SourceID)
 	if err != nil {
 		errChan <- err
+	}
+
+	// If they are following us but already have an un-verified account it means
+	// that they've already sent us a "let's party" tweet. Since we can now DM
+	// them we can also kick off the verification process
+	account, err := models.FindAccountByTwitterID(event.SourceID)
+	if account != nil {
+		// Did the unfollow us before completing the last challenge?
+		activeChallenge, err := models.FindIncompleteChallenge(account.ID)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		if activeChallenge == nil {
+			activeChallenge, err = models.FindUnsentChallenge(account.ID)
+			if err != nil {
+				errChan <- err
+				return
+			}
+		}
+
+		if activeChallenge == nil {
+			log.Printf("Could not find active challenge for user %s, aborting follow DM response!", event.SourceHandle)
+			return
+		}
+
+		err = twitter.SendDM(account.TwitterID, fmt.Sprintf(welcomeMsg, activeChallenge.Question))
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		err = activeChallenge.MarkSent()
+		if err != nil {
+			errChan <- err
+			return
+		}
 	}
 }
 
@@ -73,6 +118,21 @@ func processRegistration(event *TwitterEvent, errChan chan<- error) {
 		}
 	}
 
+	// If they're not currently following us we need to send them a mention
+	// telling them to, otherwise we can't send a DM
+	isFollowing, err := twitter.IsFollower(event.SourceID)
+	if err != nil {
+		errChan <- err
+		return
+	} else if !isFollowing {
+		log.Printf("%s is not following, sending message.", account.TwitterHandle)
+		text := fmt.Sprintf(notFollowingTweet, account.TwitterHandle)
+		if err = twitter.SendTweet(twitter.VIPBotHandle, text); err != nil {
+			errChan <- err
+		}
+		return
+	}
+
 	// Send them a direct message asking them for the answer to a challenge
 	// question
 	if len(questions) == 0 {
@@ -81,8 +141,7 @@ func processRegistration(event *TwitterEvent, errChan chan<- error) {
 	}
 
 	firstChallenge := challenges[0]
-	text := "Welcome to the party! Before we put you on the VIP list, we need to make sure you're a human. Here's an easy question for you: " + questions[0].Question
-	err = twitter.SendDM(account.TwitterID, text)
+	err = twitter.SendDM(account.TwitterID, fmt.Sprintf(welcomeMsg, questions[0].Question))
 	if err != nil {
 		errChan <- err
 		return

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -122,6 +123,10 @@ func FindIncompleteChallenge(accountId int64) (*RegistrationChallengeRegistratio
 			completed_at IS NULL
 		LIMIT 1
 	`, accountId)
+
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
 
 	return challenge, err
 }

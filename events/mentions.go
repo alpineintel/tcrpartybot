@@ -24,6 +24,7 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 	}
 
 	log.Printf("\nReceived mention from %s [%d]: %s", event.SourceHandle, event.SourceID, event.Message)
+
 	// Filter based on let's party
 	lower := strings.ToLower(event.Message)
 	if strings.Contains(lower, "party") {

@@ -141,7 +141,6 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 	}
 
 	sendDM := func(message string) {
-		log.Println(time.Now().UTC().Sub(*account.LastDMAt))
 		// Prevent us from spamming
 		if account.LastDMAt != nil && time.Now().Sub(*account.LastDMAt) < 2*time.Second {
 			return

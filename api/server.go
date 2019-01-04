@@ -89,7 +89,7 @@ func (server *Server) processDMs(dms []incomingDM) {
 
 		server.eventsChan <- &events.TwitterEvent{
 			EventType:    events.TwitterEventTypeDM,
-			Time:         time.Now(),
+			Time:         time.Now().UTC(),
 			SourceHandle: sourceHandle,
 			SourceID:     fromID,
 			Message:      dm.MessageCreated.MessageData.Text,
@@ -101,7 +101,7 @@ func (server *Server) processMentions(tweets []incomingTweet) {
 	for _, tweet := range tweets {
 		server.eventsChan <- &events.TwitterEvent{
 			EventType:    events.TwitterEventTypeMention,
-			Time:         time.Now(),
+			Time:         time.Now().UTC(),
 			SourceHandle: tweet.User.ScreenName,
 			SourceID:     tweet.User.ID,
 			Message:      tweet.Text,
@@ -129,7 +129,7 @@ func (server *Server) processFollows(follows []incomingFollow) {
 
 		server.eventsChan <- &events.TwitterEvent{
 			EventType:    events.TwitterEventTypeFollow,
-			Time:         time.Now(),
+			Time:         time.Now().UTC(),
 			SourceHandle: follow.Source.ScreenName,
 			SourceID:     id,
 		}

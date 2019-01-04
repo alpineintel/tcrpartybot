@@ -58,7 +58,7 @@ func CreateRegistrationChallenge(account *Account, question *RegistrationQuestio
 func (challenge *RegistrationChallenge) MarkSent() error {
 	db := GetDBSession()
 
-	now := time.Now()
+	now := time.Now().UTC()
 	_, err := db.Exec(`
 		UPDATE registration_challenges
 			SET sent_at = $1
@@ -71,7 +71,7 @@ func (challenge *RegistrationChallenge) MarkSent() error {
 func (challenge *RegistrationChallenge) MarkCompleted() error {
 	db := GetDBSession()
 
-	now := time.Now()
+	now := time.Now().UTC()
 	_, err := db.Exec(`
 		UPDATE registration_challenges
 		SET completed_at = $1

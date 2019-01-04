@@ -65,7 +65,7 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 			eventChan <- &events.TwitterEvent{
 				SourceID:  twitterID,
 				EventType: events.TwitterEventTypeFollow,
-				Time:      time.Now(),
+				Time:      time.Now().UTC(),
 			}
 			break
 
@@ -97,7 +97,7 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 				SourceHandle: args[0],
 				Message:      strings.Join(args[1:], " "),
 				EventType:    events.TwitterEventTypeDM,
-				Time:         time.Now(),
+				Time:         time.Now().UTC(),
 			}
 			break
 
@@ -111,7 +111,7 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 				SourceHandle: args[0],
 				Message:      strings.Join(args[1:], " "),
 				EventType:    events.TwitterEventTypeMention,
-				Time:         time.Now(),
+				Time:         time.Now().UTC(),
 			}
 			break
 		case "distribute":

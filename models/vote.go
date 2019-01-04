@@ -79,7 +79,7 @@ func FindUnrevealedVotesFromPoll(pollID int64) ([]*Vote, error) {
 func (v *Vote) MarkRevealed() error {
 	db := GetDBSession()
 
-	now := time.Now()
+	now := time.Now().UTC()
 	_, err := db.Exec(`
 		UPDATE votes
 			SET revealed_at = $1

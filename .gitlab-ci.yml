@@ -4,7 +4,7 @@ stages:
 
 production:
     stage: deploy
-    image: registry.gitlab.com/alpinefresh/tcr-party/tcrpartybot:latest
+    image: registry.gitlab.com/alpinefresh/tcr-party/tcrpartybot:1.0.0
     script:
         - dpl --provider=heroku --app=$HEROKU_APP_NAME --api-key=$HEROKU_API_KEY
     environment:

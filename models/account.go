@@ -18,8 +18,15 @@ type Account struct {
 	MultisigFactoryIdentifier     *sql.NullInt64  `db:"multisig_factory_identifier"`
 	PassedRegistrationChallengeAt *time.Time      `db:"passed_registration_challenge_at"`
 	CreatedAt                     *time.Time      `db:"created_at"`
+	LastDMAt                      *time.Time      `db:"last_dm_at"`
+
+	// ActivatedAt is used for the pre-registration phase of the party. After
+	// pre-registration it can be ignored
+	ActivatedAt *time.Time `db:"activated_at"`
 }
 
+// CreateAccount creates a new account record in the database from the given
+// account struct.
 func CreateAccount(account *Account) error {
 	db := GetDBSession()
 
@@ -131,6 +138,8 @@ func FindAccountByMultisigFactoryIdentifier(identifier int64) (*Account, error) 
 	return &account, nil
 }
 
+// HasCompletedChallenges returns true if this account has completed all of the
+// required verification challenges (and therefore has a verified account)
 func (a *Account) HasCompletedChallenges() (bool, error) {
 	db := GetDBSession()
 
@@ -162,7 +171,8 @@ func (a *Account) Save() error {
 			twitter_handle = :twitter_handle,
 			multisig_address = :multisig_address,
 			multisig_factory_identifier = :multisig_factory_identifier,
-			passed_registration_challenge_at = :passed_registration_challenge_at
+			passed_registration_challenge_at = :passed_registration_challenge_at,
+			last_dm_at = :last_dm_at
 		WHERE id = :id
 	`, a)
 
@@ -172,8 +182,16 @@ func (a *Account) Save() error {
 // MarkRegistered updates the passed_registration_challenge_at column with the
 // current timestamp
 func (a *Account) MarkRegistered() error {
-	now := time.Now()
+	now := time.Now().UTC()
 	a.PassedRegistrationChallengeAt = &now
+
+	return a.Save()
+}
+
+// UpdateLastDMAt sets last_dm_at to the current timestamp and updates the db
+func (a *Account) UpdateLastDMAt() error {
+	now := time.Now().UTC()
+	a.LastDMAt = &now
 
 	return a.Save()
 }

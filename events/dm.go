@@ -46,6 +46,8 @@ const (
 	invalidChallengeResponseMsg = "🙅‍♀️ That's not right! %s"
 	nextChallengeMsg            = "Nice, that's it! Here's another one for you: %s"
 	preregistrationSuccessMsg   = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
+	invalidCommandMsg           = "Whoops, I don't recognize that command. Try typing help to see what you can say to me."
+	helpMsg                     = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge."
 
 	depositAmount = 500
 	voteAmount    = 50
@@ -127,18 +129,37 @@ func ListenForTwitterDM(handle string, eventChan chan<- *TwitterEvent, errChan c
 func processDM(event *TwitterEvent, errChan chan<- error) {
 	log.Printf("Received DM from %s: %s", event.SourceHandle, event.Message)
 
-	sendDM := func(message string) {
-		err := twitter.SendDM(event.SourceID, message)
-		if err != nil {
-			errChan <- err
-		}
-	}
-
 	// If they don't have an acccount, do nothing.
 	account, err := models.FindAccountByHandle(event.SourceHandle)
 	if account == nil || err != nil {
-		sendDM(noAccountMsg)
+		err := twitter.SendDM(event.SourceID, noAccountMsg)
+		if err != nil {
+			errChan <- err
+			return
+		}
 		return
+	}
+
+	sendDM := func(message string) {
+		log.Println(time.Now().UTC().Sub(*account.LastDMAt))
+		// Prevent us from spamming
+		if account.LastDMAt != nil && time.Now().Sub(*account.LastDMAt) < 2*time.Second {
+			return
+		}
+
+		go func() {
+			// Wait a second in order to prevent users from spamming
+			time.Sleep(1 * time.Second)
+			if err := twitter.SendDM(event.SourceID, message); err != nil {
+				errChan <- err
+				return
+			}
+
+			if err = account.UpdateLastDMAt(); err != nil {
+				errChan <- err
+				return
+			}
+		}()
 	}
 
 	// If they're already registered they're trying to send some kind of
@@ -146,6 +167,13 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 	if account.PassedRegistrationChallengeAt != nil {
 		// Split up the message into a command
 		argv := strings.Split(event.Message, " ")
+
+		// If they haven't been activated yet (ie pre-registration) then we'll
+		// stop them here
+		if account.ActivatedAt == nil {
+			sendDM(preregistrationSuccessMsg)
+			return
+		}
 
 		switch argv[0] {
 		case "balance":
@@ -156,8 +184,10 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 			err = handleChallenge(account, argv, sendDM)
 		case "vote":
 			err = handleVote(account, argv, sendDM)
+		case "help":
+			sendDM(helpMsg)
 		default:
-			sendDM(awaitingPartyBeginMsg)
+			sendDM(invalidCommandMsg)
 		}
 
 		if err != nil {

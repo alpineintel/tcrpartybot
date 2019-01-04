@@ -13,8 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -615,7 +615,7 @@ func PLCRCommitVote(multisigAddress string, pollID *big.Int, amount *big.Int, vo
 
 	// Hash the packed arguments
 	var secretHashBuf []byte
-	hashing := sha3.NewKeccak256()
+	hashing := sha3.NewLegacyKeccak256()
 	hashing.Write(hashBytes)
 	secretHashBuf = hashing.Sum(secretHashBuf)
 

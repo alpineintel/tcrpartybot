@@ -85,8 +85,10 @@ func GetClientSession() (*ethclient.Client, error) {
 		return session, nil
 	}
 
-	session, err := ethclient.Dial(os.Getenv("ETH_NODE_URI"))
+	ethSession, err := ethclient.Dial(os.Getenv("ETH_NODE_URI"))
+	session = ethSession
 	if err != nil {
+		session = nil
 		return nil, err
 	}
 

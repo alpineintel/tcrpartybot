@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"strings"
@@ -104,6 +105,9 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 		latestBlock, err := client.HeaderByNumber(context.Background(), nil)
 		if err != nil {
 			errChan <- err
+		} else if latestBlock == nil {
+			errChan <- fmt.Errorf("Could not fetch latest block number, skipping watch loop")
+			continue
 		}
 
 		// The filter is inclusive, therefore we should add 1 to the last seen block

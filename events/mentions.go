@@ -64,9 +64,9 @@ func processFollow(event *TwitterEvent, errChan chan<- error) {
 }
 
 func processMention(event *TwitterEvent, errChan chan<- error) {
-	if strings.ToLower(event.SourceHandle) == os.Getenv("PARTY_BOT_HANDLE") {
+	if strings.ToLower(event.SourceHandle) == strings.ToLower(os.Getenv("PARTY_BOT_HANDLE")) {
 		return
-	} else if strings.ToLower(event.SourceHandle) == os.Getenv("VIP_BOT_HANDLE") {
+	} else if strings.ToLower(event.SourceHandle) == strings.ToLower(os.Getenv("VIP_BOT_HANDLE")) {
 		return
 	}
 

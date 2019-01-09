@@ -51,15 +51,15 @@ func ProcessTwitterEvents(eventChan <-chan *TwitterEvent, errorChan chan<- error
 		event := <-eventChan
 		switch event.EventType {
 		case TwitterEventTypeMention:
-			processMention(event, errorChan)
+			go processMention(event, errorChan)
 			break
 
 		case TwitterEventTypeFollow:
-			processFollow(event, errorChan)
+			go processFollow(event, errorChan)
 			break
 
 		case TwitterEventTypeDM:
-			processDM(event, errorChan)
+			go processDM(event, errorChan)
 			break
 		}
 	}

@@ -96,14 +96,12 @@ func processRegistration(event *TwitterEvent, errChan chan<- error) {
 		TwitterID:     event.SourceID,
 	}
 	err = models.CreateAccount(account)
-
 	if err != nil {
 		errChan <- err
 	}
 
 	// Generate three registration challenges for them
 	questions, err := models.FetchRandomRegistrationQuestions(models.RegistrationChallengeCount)
-
 	if err != nil {
 		errChan <- err
 		return

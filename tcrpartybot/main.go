@@ -11,6 +11,7 @@ import (
 	"gitlab.com/alpinefresh/tcrpartybot/api"
 	"gitlab.com/alpinefresh/tcrpartybot/events"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
+	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
 
 func main() {
@@ -38,6 +39,7 @@ func main() {
 	errChan := make(chan error)
 
 	// Listen for and process any incoming twitter events
+	go twitter.MonitorRatelimit()
 	go api.StartServer(twitterEventChan, errChan)
 	go events.ProcessTwitterEvents(twitterEventChan, errChan)
 

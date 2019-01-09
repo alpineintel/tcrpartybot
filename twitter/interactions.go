@@ -5,7 +5,31 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 )
+
+// Stores all threads waiting to be unlocked
+var requestQueue chan chan bool
+
+// MonitorRatelimit will ensure that all twitter calls are executed at most
+// once per two seconds
+func MonitorRatelimit() {
+	requestQueue = make(chan chan bool, 500)
+
+	for {
+		time.Sleep(2 * time.Second)
+		request := <-requestQueue
+		close(request)
+	}
+}
+
+// awaitRatelimit will add the current thread's execution to a queue and will
+// block until it is released by the ratelimiting thread
+func awaitRatelimit() {
+	await := make(chan bool)
+	requestQueue <- await
+	<-await
+}
 
 // FilterTweets will begin filtering tweets and outputting them to the returned
 // channel
@@ -61,11 +85,18 @@ func Retweet(handle string, tweetID int64) error {
 		return nil
 	}
 
+	awaitRatelimit()
+
 	log.Printf("Retweeting from %s: %d", handle, tweetID)
 	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		updateLastRequest()
 		return nil
 	}
-	_, _, err = client.Statuses.Retweet(tweetID, nil)
+
+	if _, _, err = client.Statuses.Retweet(tweetID, nil); err != nil {
+		return err
+	}
+
 	return err
 }
 
@@ -76,13 +107,19 @@ func SendTweet(handle string, message string) error {
 		return nil
 	}
 
+	awaitRatelimit()
+
 	log.Printf("Tweeting from %s: %s", handle, message)
 	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		updateLastRequest()
 		return nil
 	}
 
-	_, _, err = client.Statuses.Update(message, nil)
-	return err
+	if _, _, err = client.Statuses.Update(message, nil); err != nil {
+		return nil
+	}
+
+	return nil
 }
 
 // SendDM sends a direct message from the VIP party bot to the specified handle
@@ -92,8 +129,11 @@ func SendDM(recipientID int64, message string) error {
 		return err
 	}
 
+	awaitRatelimit()
+
 	log.Printf("Sending DM to %d: %s", recipientID, message)
 	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		updateLastRequest()
 		return nil
 	}
 
@@ -114,8 +154,11 @@ func SendDM(recipientID int64, message string) error {
 func Follow(userID int64) error {
 	log.Printf("Following Twitter user with ID %d", userID)
 	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		updateLastRequest()
 		return nil
 	}
+
+	awaitRatelimit()
 
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 
@@ -124,8 +167,12 @@ func Follow(userID int64) error {
 		UserID: userID,
 		Follow: &follow,
 	}
-	_, _, err = client.Friendships.Create(params)
-	return err
+
+	if _, _, err = client.Friendships.Create(params); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // IsFollower will return true if the given userID is a follower of the VIP bot
@@ -134,6 +181,8 @@ func IsFollower(userID int64) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	awaitRatelimit()
 
 	var nextCursor int64 = -1
 	for {

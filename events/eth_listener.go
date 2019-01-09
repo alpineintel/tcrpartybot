@@ -105,7 +105,7 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 		latestBlock, err := client.HeaderByNumber(context.Background(), nil)
 		if err != nil {
 			errChan <- err
-		} else if latestBlock == nil {
+		} else if latestBlock == nil || latestBlock.Number == nil {
 			errChan <- fmt.Errorf("Could not fetch latest block number, skipping watch loop")
 			continue
 		}

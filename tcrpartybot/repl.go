@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ const (
 	mention-id [from id]  [message]        - Simulates a Twitter mention using an ID
 	follow [id]                            - Simulates a follow from the given Twitter ID
 	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot
+	rm [handle]                            - Deletes all records of the account associated with this Twitter handle
 	distribute                             - Distributes tokens to all pre-registered accounts
 	deploy-wallet                          - Calls the MultisigWalletFactory contract [for debugging]`
 )
@@ -114,6 +116,20 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 				Message:      strings.Join(args[1:], " "),
 				EventType:    events.TwitterEventTypeMention,
 				Time:         time.Now().UTC(),
+			}
+			break
+
+		case "rm":
+			if argc < 1 {
+				errChan <- errors.New("Invalid number of arguments for command rm")
+				continue
+			}
+
+			err := deleteAccount(args[0])
+			if err != nil {
+				errChan <- err
+			} else {
+				log.Println("Account deleted")
 			}
 			break
 

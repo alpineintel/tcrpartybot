@@ -74,7 +74,7 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 
 	// Filter based on let's party
 	lower := strings.ToLower(event.Message)
-	if strings.Contains(lower, "party") {
+	if strings.Contains(lower, " party") {
 		processRegistration(event, errChan)
 	}
 }

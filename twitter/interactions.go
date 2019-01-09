@@ -89,7 +89,6 @@ func Retweet(handle string, tweetID int64) error {
 
 	log.Printf("Retweeting from %s: %d", handle, tweetID)
 	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
-		updateLastRequest()
 		return nil
 	}
 
@@ -111,7 +110,6 @@ func SendTweet(handle string, message string) error {
 
 	log.Printf("Tweeting from %s: %s", handle, message)
 	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
-		updateLastRequest()
 		return nil
 	}
 
@@ -133,7 +131,6 @@ func SendDM(recipientID int64, message string) error {
 
 	log.Printf("Sending DM to %d: %s", recipientID, message)
 	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
-		updateLastRequest()
 		return nil
 	}
 
@@ -154,7 +151,6 @@ func SendDM(recipientID int64, message string) error {
 func Follow(userID int64) error {
 	log.Printf("Following Twitter user with ID %d", userID)
 	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
-		updateLastRequest()
 		return nil
 	}
 

@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	noAccountMsg = "Hmm, I haven't met you yet. If you want to join the TCR party send me a tweet that says \"let's party\""
+	noAccountMsg       = "Hmm, I haven't met you yet. If you want to join the TCR party send me a tweet that says \"let's party\""
+	inactiveAccountMsg = "The party hasn't started just yet. Keep an eye on @TCRPartyBot for a launch announcement."
 
 	votingArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'vote [twitter handle] yes' or 'vote [twitter handle] no'"
 	votingListingNotFoundMsg   = "Hmm, I couldn't find a registry listing for that twitter handle. Are you sure they've been nominated to the registry?"
@@ -126,6 +127,30 @@ func ListenForTwitterDM(handle string, eventChan chan<- *TwitterEvent, errChan c
 	}
 }
 
+func generateSendDM(account *models.Account, errChan chan<- error) func(message string) {
+	return func(message string) {
+		// Prevent us from spamming
+		if account.LastDMAt != nil && time.Now().Sub(*account.LastDMAt) < 2*time.Second {
+			return
+		}
+
+		go func() {
+			// Wait a second in order to prevent users from spamming
+			time.Sleep(1 * time.Second)
+			if err := twitter.SendDM(account.TwitterID, message); err != nil {
+				errChan <- err
+				return
+			}
+
+			if err := account.UpdateLastDMAt(); err != nil {
+				errChan <- err
+				return
+			}
+		}()
+	}
+
+}
+
 func processDM(event *TwitterEvent, errChan chan<- error) {
 	log.Printf("Received DM from %s: %s", event.SourceHandle, event.Message)
 
@@ -140,77 +165,66 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		return
 	}
 
-	sendDM := func(message string) {
-		// Prevent us from spamming
-		if account.LastDMAt != nil && time.Now().Sub(*account.LastDMAt) < 2*time.Second {
-			return
-		}
+	// Define a helper function that will be passed around below
+	sendDM := generateSendDM(account, errChan)
 
-		go func() {
-			// Wait a second in order to prevent users from spamming
-			time.Sleep(1 * time.Second)
-			if err := twitter.SendDM(event.SourceID, message); err != nil {
-				errChan <- err
-				return
-			}
-
-			if err = account.UpdateLastDMAt(); err != nil {
-				errChan <- err
-				return
-			}
-		}()
-	}
-
-	// If they're already registered they're trying to send some kind of
-	// command to the bot
-	if account.PassedRegistrationChallengeAt != nil {
-		// Split up the message into a command
-		argv := strings.Split(event.Message, " ")
-
-		// If they haven't been activated yet (ie pre-registration) then we'll
-		// stop them here
-		if account.ActivatedAt == nil {
-			sendDM(preregistrationSuccessMsg)
-			return
-		}
-
-		switch argv[0] {
-		case "balance":
-			err = handleBalance(account, argv, sendDM)
-		case "nominate":
-			err = handleNomination(account, argv, sendDM)
-		case "challenge":
-			err = handleChallenge(account, argv, sendDM)
-		case "vote":
-			err = handleVote(account, argv, sendDM)
-		case "help":
-			sendDM(helpMsg)
-		default:
-			sendDM(invalidCommandMsg)
-		}
-
+	// Are they still in the registration challenge stage?
+	if account.PassedRegistrationChallengeAt == nil {
+		activeChallenge, err := models.FindIncompleteChallenge(account.ID)
 		if err != nil {
 			errChan <- err
+			return
 		}
 
+		data := RegistrationEventData{
+			Event:     event,
+			Challenge: activeChallenge,
+			Account:   account,
+		}
+
+		if activeChallenge != nil {
+			verifyAnswer(data, errChan)
+			return
+		}
+
+		log.Println("Account has yet to pass activation challenge but does not have any incomplete challenges")
 		return
 	}
 
-	// Are they still in the dance (registration challenge) stage?
-	activeChallenge, err := models.FindIncompleteChallenge(account.ID)
+	// They've registered but their account hasn't been activated yet (perhaps
+	// because we're still in the preregistration phase?
+	if account.ActivatedAt == nil {
+		sendDM(inactiveAccountMsg)
+		return
+	}
+
+	// Looks like they're good to go and are sending a command to the bot
+	argv := strings.Split(event.Message, " ")
+
+	// If they haven't been activated yet (ie pre-registration) then we'll
+	// stop them here
+	if account.ActivatedAt == nil {
+		sendDM(preregistrationSuccessMsg)
+		return
+	}
+
+	switch argv[0] {
+	case "balance":
+		err = handleBalance(account, argv, sendDM)
+	case "nominate":
+		err = handleNomination(account, argv, sendDM)
+	case "challenge":
+		err = handleChallenge(account, argv, sendDM)
+	case "vote":
+		err = handleVote(account, argv, sendDM)
+	case "help":
+		sendDM(helpMsg)
+	default:
+		sendDM(invalidCommandMsg)
+	}
+
 	if err != nil {
 		errChan <- err
-		return
-	}
-
-	data := RegistrationEventData{
-		Event:     event,
-		Challenge: activeChallenge,
-		Account:   account,
-	}
-
-	if activeChallenge != nil {
-		verifyAnswer(data, errChan)
 	}
 }
 

@@ -214,3 +214,22 @@ func (a *Account) SetMultisigAddress(address string) error {
 	a.MultisigAddress = &sql.NullString{Valid: true, String: address}
 	return a.Save()
 }
+
+// Destroy will delete all records of the account from the db
+func (a *Account) Destroy() error {
+	db := GetDBSession()
+
+	tx := db.MustBegin()
+
+	_, err := tx.NamedExec("DELETE FROM registration_challenges WHERE account_id = :id", a)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.NamedExec("DELETE FROM accounts WHERE id = :id", a)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}

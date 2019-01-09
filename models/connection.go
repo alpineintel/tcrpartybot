@@ -9,6 +9,8 @@ import (
 
 var pool *sqlx.DB = nil
 
+// GetDBSession returns the current active database connection pool or creates
+// it if it doesn't already exist
 func GetDBSession() *sqlx.DB {
 	if pool != nil {
 		return pool

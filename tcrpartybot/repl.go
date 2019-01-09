@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	HelpString = `Welcome to the TCR Party REPL! Available commands:
+	helpString = `Welcome to the TCR Party REPL! Available commands:
 	dm [from handle, w/o @] [message]      - Simulates a Twitter DM
 	mention [from handle, w/o @] [message] - Simulates a Twitter mention
+	mention-id [from id]  [message]        - Simulates a Twitter mention using an ID
 	follow [id]                            - Simulates a follow from the given Twitter ID
 	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot
 	distribute                             - Distributes tokens to all pre-registered accounts
@@ -24,7 +25,7 @@ const (
 )
 
 func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
-	fmt.Print(HelpString)
+	fmt.Print(helpString)
 
 	for {
 		// Give the other channels a chance to process and print a response
@@ -87,6 +88,7 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 				continue
 			}
 			break
+
 		case "dm":
 			if argc < 2 {
 				errChan <- errors.New("Invalid number of arguments for command dm")
@@ -114,6 +116,28 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 				Time:         time.Now().UTC(),
 			}
 			break
+
+		case "mention-id":
+			if argc < 3 {
+				errChan <- errors.New("Invalid number of arguments for command dm-id")
+				continue
+			}
+
+			twitterID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				errChan <- err
+				continue
+			}
+
+			eventChan <- &events.TwitterEvent{
+				SourceHandle: args[1],
+				SourceID:     twitterID,
+				Message:      strings.Join(args[2:], " "),
+				EventType:    events.TwitterEventTypeMention,
+				Time:         time.Now().UTC(),
+			}
+			break
+
 		case "distribute":
 			distributeTokens(errChan)
 		}

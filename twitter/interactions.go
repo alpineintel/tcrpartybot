@@ -178,31 +178,17 @@ func IsFollower(userID int64) (bool, error) {
 		return false, err
 	}
 
-	awaitRatelimit()
-
-	var nextCursor int64 = -1
-	for {
-		followers, _, err := client.Followers.List(&twitter.FollowerListParams{
-			Cursor: nextCursor,
-		})
-
-		if err != nil {
-			return false, err
-		}
-
-		for _, user := range followers.Users {
-			if user.ID == userID {
-				return true, nil
-			}
-		}
-
-		// Do we need to iterate on our follower list?
-		if followers.NextCursor == 0 {
-			break
-		}
+	params := &twitter.FriendshipShowParams{
+		SourceID:         userID,
+		TargetScreenName: os.Getenv("VIP_BOT_HANDLE"),
 	}
 
-	return false, nil
+	friendship, _, err := client.Friendships.Show(params)
+	if err != nil {
+		return false, err
+	}
+
+	return friendship.Source.Following, nil
 }
 
 // CreateWebhook creates a new webhook and subscribes it to the user, allowing

@@ -3,6 +3,7 @@ package events
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
@@ -17,8 +18,10 @@ const (
 	applicationRemovedTweet          = "@%s has been removed from the #TCRParty."
 	challengeSucceededTweet          = "The challenge against @%s's listing succeeded! They're out of the party."
 	challengeFailedTweet             = "The challenge against @%s's listing failed! Their spot in the party remains."
+	walletConfirmedMsg               = "Done! Your wallet is good to go and has %d TCRP waiting for you. Try responding with 'help' to see what you can ask me to do."
 
-	initialTokenAmount = 50
+	initialTokenAmount = 1550
+	initialVoteAmount  = 50
 )
 
 func processMultisigWalletCreation(event *ETHEvent) error {
@@ -56,10 +59,21 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 		return err
 	}
 
-	// And lock those tokens up into the voting contract
-	_, err = contracts.PLCRDeposit(multisigAddress, atomicAmount)
+	// Lock some tokens up into the voting contract
+	atomicAmount = contracts.GetAtomicTokenAmount(initialVoteAmount)
+	plcrTX, err := contracts.PLCRDeposit(multisigAddress, atomicAmount)
 	if err != nil {
 		return err
+	}
+
+	_, err = contracts.AwaitTransactionConfirmation(plcrTX.Hash())
+	if err != nil {
+		return err
+	}
+
+	if os.Getenv("PREREGISTRATION") != "true" {
+		msg := fmt.Sprintf(walletConfirmedMsg, initialTokenAmount)
+		twitter.SendDM(account.TwitterID, msg)
 	}
 
 	return nil

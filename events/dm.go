@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +48,7 @@ const (
 	invalidChallengeResponseMsg = "🙅‍♀️ That's not right! %s"
 	nextChallengeMsg            = "Nice, that's it! Here's another one for you: %s"
 	preregistrationSuccessMsg   = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
+	registrationSuccessMsg      = "🎉 Awesome! Now that you're registered I'll need a few minutes to build your wallet and give you some TCR Party Points to get started with. I'll send you a DM once I'm done."
 	invalidCommandMsg           = "Whoops, I don't recognize that command. Try typing help to see what you can say to me."
 	helpMsg                     = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge."
 
@@ -262,7 +264,18 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 			return
 		}
 
-		err = twitter.SendDM(data.Account.TwitterID, preregistrationSuccessMsg)
+		// Send them a DM letting them know they're good to go
+		msg := registrationSuccessMsg
+		if os.Getenv("PREREGISTRATION") == "true" {
+			msg = preregistrationSuccessMsg
+		} else {
+			err := data.Account.MarkActivated()
+			if err != nil {
+				errChan <- err
+				return
+			}
+		}
+		err = twitter.SendDM(data.Account.TwitterID, msg)
 		if err != nil {
 			errChan <- err
 		}

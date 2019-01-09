@@ -141,6 +141,8 @@ func MintTokens(address string, amount *big.Int) (*types.Transaction, error) {
 		return nil, err
 	}
 
+	log.Printf("Minting %d tokens to %s", GetHumanTokenAmount(amount).Int64(), address)
+
 	return tx, nil
 }
 

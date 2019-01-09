@@ -172,6 +172,7 @@ func (a *Account) Save() error {
 			multisig_address = :multisig_address,
 			multisig_factory_identifier = :multisig_factory_identifier,
 			passed_registration_challenge_at = :passed_registration_challenge_at,
+			activated_at = :activated_at,
 			last_dm_at = :last_dm_at
 		WHERE id = :id
 	`, a)
@@ -184,6 +185,14 @@ func (a *Account) Save() error {
 func (a *Account) MarkRegistered() error {
 	now := time.Now().UTC()
 	a.PassedRegistrationChallengeAt = &now
+
+	return a.Save()
+}
+
+// MarkActivated updates the activated_at column with the current timestamp
+func (a *Account) MarkActivated() error {
+	now := time.Now().UTC()
+	a.ActivatedAt = &now
 
 	return a.Save()
 }

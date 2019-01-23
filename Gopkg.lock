@@ -60,6 +60,14 @@
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:6f9339c912bbdda81302633ad7e99a28dfa5a639c864061f1929510a9a64aa74"
+  name = "github.com/dustin/go-humanize"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9f541cc9db5d55bce703bd99987c9d5cb8eea45e"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:81cdea2cb729a674dc6e3f9e85ca1169b6a13157676b5ff6e15f1561371a729d"
   name = "github.com/ethereum/go-ethereum"
   packages = [
@@ -252,6 +260,7 @@
   input-imports = [
     "github.com/dghubble/oauth1",
     "github.com/dghubble/oauth1/twitter",
+    "github.com/dustin/go-humanize",
     "github.com/ethereum/go-ethereum",
     "github.com/ethereum/go-ethereum/accounts/abi",
     "github.com/ethereum/go-ethereum/accounts/abi/bind",

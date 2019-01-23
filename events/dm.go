@@ -13,6 +13,7 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	goTwitter "github.com/stevenleeg/go-twitter/twitter"
 
+	"github.com/dustin/go-humanize"
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
@@ -51,9 +52,12 @@ const (
 	registrationSuccessMsg      = "🎉 Awesome! Now that you're registered I'll need a few minutes to build your wallet and give you some TCR Party Points to get started with. I'll send you a DM once I'm done."
 	invalidCommandMsg           = "Whoops, I don't recognize that command. Try typing help to see what you can say to me."
 	helpMsg                     = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge."
+	cannotHitFaucetMsg          = "Ack, I can only let you hit the faucet once per day. Try again %s."
+	hitFaucetMsg                = "You got it. %d TCRP headed your way. TX Hash: %s"
 
 	depositAmount = 500
 	voteAmount    = 50
+	faucetAmount  = 50
 )
 
 // RegistrationEventData collects the required data for keeping track of
@@ -219,6 +223,8 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		err = handleChallenge(account, argv, sendDM)
 	case "vote":
 		err = handleVote(account, argv, sendDM)
+	case "faucet":
+		err = handleFaucet(account, argv, sendDM)
 	case "help":
 		sendDM(helpMsg)
 	default:
@@ -513,5 +519,40 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	}
 
 	sendDM(fmt.Sprintf(votingSuccessMsg, fmtRevealDate))
+	return nil
+}
+
+func handleFaucet(account *models.Account, argv []string, sendDM func(string)) error {
+	// Have they hit the faucet recently?
+	lastHit, err := models.LatestFaucetHit(account.ID)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().UTC()
+	if lastHit != nil && now.Sub(*lastHit.Timestamp) < 24*time.Hour {
+		nextHit := lastHit.Timestamp.Add(24 * time.Hour)
+		sendDM(fmt.Sprintf(cannotHitFaucetMsg, humanize.Time(nextHit)))
+		return nil
+	}
+
+	// If they don't yet have a multisig wallet we'll have to stop here
+	if !account.MultisigAddress.Valid {
+		return fmt.Errorf("Could not faucet tokens to account w/o multisig address: %d", account.ID)
+	}
+
+	atomicAmount := contracts.GetAtomicTokenAmount(faucetAmount)
+	tx, err := contracts.MintTokens(account.MultisigAddress.String, atomicAmount)
+	if err != nil {
+		return err
+	}
+
+	err = models.RecordFaucetHit(account.ID, atomicAmount)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Faucet hit: %d tokens to %s (%d). TX: %s", faucetAmount, account.TwitterHandle, account.ID, tx.Hash().Hex())
+	sendDM(fmt.Sprintf(hitFaucetMsg, faucetAmount, tx.Hash().Hex()))
 	return nil
 }

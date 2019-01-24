@@ -13,9 +13,14 @@ import (
 	"strconv"
 	"time"
 
+	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/events"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
+)
+
+const (
+	disbursementMsg = "Hi there, welcome to the party! We've just sent you %d TCRP to get you started. Reply with help to see what you can do with your new tokens."
 )
 
 type incomingDM struct {
@@ -276,6 +281,59 @@ func (server *Server) authenticateVIP(w http.ResponseWriter, r *http.Request) {
 func (server *Server) authenticateParty(w http.ResponseWriter, r *http.Request) {
 }
 
+func (server *Server) distributeTokens(w http.ResponseWriter, r *http.Request) {
+	// Convert body to an int (this will be the user ID we write to)
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	id, err := strconv.ParseInt(buf.String(), 10, 64)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	account, err := models.FindAccountByID(id)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	// Get their wallet address
+	if !account.MultisigAddress.Valid {
+		w.WriteHeader(400)
+		w.Write([]byte("User does not have multisig wallet"))
+		return
+	}
+
+	// How much TCRP should we give them?
+	amount, err := strconv.ParseInt(os.Getenv("INITIAL_DISTRIBUTION_AMOUNT"), 10, 64)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	// Send 'em the tokens
+	atomicAmount := contracts.GetAtomicTokenAmount(amount)
+	tx, err := contracts.MintTokens(account.MultisigAddress.String, atomicAmount)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	err = twitter.SendDM(account.TwitterID, fmt.Sprintf(disbursementMsg, amount))
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Twitter error: " + err.Error()))
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write([]byte(tx.Hash().Hex()))
+}
+
 // StartServer spins up a webserver for the API
 func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *Server {
 	server := &Server{
@@ -287,6 +345,7 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	http.HandleFunc("/admin/create-webhook", requireAuth(server.createWebhook))
 	http.HandleFunc("/admin/authenticate-vip", requireAuth(server.authenticateVIP))
 	http.HandleFunc("/admin/authenticate-party", requireAuth(server.authenticateParty))
+	http.HandleFunc("/admin/distribute-tokens", requireAuth(server.distributeTokens))
 
 	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {

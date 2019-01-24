@@ -49,7 +49,7 @@ func ClearKey(key string) error {
 	row := &keyValueRow{}
 	err := db.Get(row, "DELETE FROM keyval_store WHERE key=$1", key)
 
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
 

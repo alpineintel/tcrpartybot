@@ -219,7 +219,7 @@ func (server *Server) createWebhook(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
 
-func (server *Server) authenticateVIP(w http.ResponseWriter, r *http.Request) {
+func authenticateUser(user string, w http.ResponseWriter, r *http.Request) {
 	reqToken, err := models.GetKey(models.TwitterRequestTokenKey)
 	if err != nil {
 		w.WriteHeader(400)
@@ -229,7 +229,7 @@ func (server *Server) authenticateVIP(w http.ResponseWriter, r *http.Request) {
 
 	if reqToken == "" {
 		request := &twitter.OAuthRequest{
-			Handle: twitter.VIPBotHandle,
+			Handle: user,
 		}
 
 		url, err := request.GetOAuthURL()
@@ -256,7 +256,7 @@ func (server *Server) authenticateVIP(w http.ResponseWriter, r *http.Request) {
 
 		// Authenticate with Twitter
 		request := &twitter.OAuthRequest{
-			Handle:       twitter.VIPBotHandle,
+			Handle:       user,
 			RequestToken: reqToken,
 			PIN:          pin,
 		}
@@ -269,7 +269,7 @@ func (server *Server) authenticateVIP(w http.ResponseWriter, r *http.Request) {
 
 		if err = models.ClearKey(models.TwitterRequestTokenKey); err != nil {
 			w.WriteHeader(400)
-			w.Write([]byte("Error: " + err.Error()))
+			w.Write([]byte("DB Error: " + err.Error()))
 			return
 		}
 
@@ -278,7 +278,12 @@ func (server *Server) authenticateVIP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (server *Server) authenticateVIP(w http.ResponseWriter, r *http.Request) {
+	authenticateUser(os.Getenv("VIP_BOT_HANDLE"), w, r)
+}
+
 func (server *Server) authenticateParty(w http.ResponseWriter, r *http.Request) {
+	authenticateUser(os.Getenv("PARTY_BOT_HANDLE"), w, r)
 }
 
 func (server *Server) distributeTokens(w http.ResponseWriter, r *http.Request) {

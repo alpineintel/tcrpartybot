@@ -335,6 +335,14 @@ func (server *Server) distributeTokens(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Activate their account
+	err = account.MarkActivated()
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Activation error: " + err.Error()))
+		return
+	}
+
 	w.WriteHeader(200)
 	w.Write([]byte(tx.Hash().Hex()))
 }

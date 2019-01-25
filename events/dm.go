@@ -44,18 +44,20 @@ const (
 	nominateSubmissionErrorMsg   = "There was an error trying to submit your nomination. The admins have been notified!"
 	nominateSuccessMsg           = "We've submitted your nomination to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
 
-	balanceMsg                  = "Your balance is %d TCRP"
-	awaitingPartyBeginMsg       = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
-	invalidChallengeResponseMsg = "🙅‍♀️ That's not right! %s"
-	nextChallengeMsg            = "Nice, that's it! Here's another one for you: %s"
-	preregistrationSuccessMsg   = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
-	registrationSuccessMsg      = "🎉 Awesome! Now that you're registered I'll need a few minutes to build your wallet and give you some TCR Party Points to get started with. I'll send you a DM once I'm done."
-	invalidCommandMsg           = "Whoops, I don't recognize that command. Try typing help to see what you can say to me."
-	helpMsg                     = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge."
-	cannotHitFaucetMsg          = "Ack, I can only let you hit the faucet once per day. Try again %s."
-	hitFaucetMsg                = "You got it. %d TCRP headed your way. TX Hash: %s"
-	errorMsg                    = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
-	voteBalanceMsg              = "You have %d tokens deposited to vote. This means you can vote with a maximum weight of %d."
+	balanceMsg                      = "Your balance is %d TCRP"
+	awaitingPartyBeginMsg           = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
+	invalidChallengeResponseMsg     = "🙅‍♀️ That's not right! %s"
+	nextChallengeMsg                = "Nice, that's it! Here's another one for you: %s"
+	preregistrationSuccessMsg       = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
+	registrationSuccessMsg          = "🎉 Awesome! Now that you're registered I'll need a few minutes to build your wallet and give you some TCR Party Points to get started with. I'll send you a DM once I'm done."
+	invalidCommandMsg               = "Whoops, I don't recognize that command. Try typing help to see what you can say to me."
+	helpMsg                         = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge."
+	cannotHitFaucetMsg              = "Ack, I can only let you hit the faucet once per day. Try again %s."
+	hitFaucetMsg                    = "You got it. %d TCRP headed your way. TX Hash: %s"
+	errorMsg                        = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
+	voteBalanceMsg                  = "You have %d tokens deposited to vote. This means you can vote with a maximum weight of %d."
+	plcrDepositInsufficientFundsMsg = "Whoops, looks like you don't have enough tokens to deposit this amount to your maximum voting weight. Your current balance is %d"
+	plcrDepositSuccessMsg           = "Your tokens have been deposited successfully! TX Hash: %s"
 
 	depositAmount = 500
 	voteAmount    = 50
@@ -229,6 +231,8 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		err = handleFaucet(account, argv, sendDM)
 	case "vote-balance":
 		err = handleVoteBalance(account, argv, sendDM)
+	case "vote-deposit":
+		err = handleVoteDeposit(account, argv, sendDM)
 	case "help":
 		sendDM(helpMsg)
 	default:
@@ -576,5 +580,35 @@ func handleVoteBalance(account *models.Account, argv []string, sendDM func(strin
 
 	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
 	sendDM(fmt.Sprintf(voteBalanceMsg, humanBalance, humanBalance))
+	return nil
+}
+
+func handleVoteDeposit(account *models.Account, argv []string, sendDM func(string)) error {
+	if !account.MultisigAddress.Valid {
+		err := errors.New("User attempted to vote without a multisig address")
+		sendDM(fmt.Sprintf(errorMsg, err.Error()))
+		return err
+	}
+	amount, err := strconv.ParseInt(argv[1], 10, 64)
+	toDeposit := contracts.GetAtomicTokenAmount(amount)
+
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	if balance.Cmp(toDeposit) == -1 {
+		msg := fmt.Sprintf(plcrDepositInsufficientFundsMsg, contracts.GetHumanTokenAmount(balance).Int64())
+		sendDM(msg)
+		return nil
+	}
+
+	tx, err := contracts.PLCRDeposit(account.MultisigAddress.String, toDeposit)
+	if err != nil {
+		sendDM(fmt.Sprintf(errorMsg, err.Error()))
+		return err
+	}
+
+	sendDM(fmt.Sprintf(plcrDepositSuccessMsg, tx.Hash().Hex()))
 	return nil
 }

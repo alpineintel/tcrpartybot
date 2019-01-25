@@ -278,11 +278,11 @@ func AwaitTransactionConfirmation(txHash common.Hash) (*types.Receipt, error) {
 	ctx, cancel := context.WithDeadline(emptyCtx, time.Now().Add(time.Minute*3))
 	defer cancel()
 
-	var retryDelay time.Duration = 1
+	var retryDelay time.Duration = 16
 	for {
 		receipt, err := client.TransactionReceipt(ctx, txHash)
 
-		if err != nil && retryDelay > 4 {
+		if err != nil && retryDelay > 128 {
 			return nil, err
 		} else if err == ethereum.NotFound {
 			time.Sleep(retryDelay * time.Second)
@@ -580,7 +580,6 @@ func PLCRDeposit(multisigAddress string, amount *big.Int) (*types.Transaction, e
 	}
 
 	// Wait a bit for the transaction to propagate
-	time.Sleep(100)
 	_, err = AwaitTransactionConfirmation(approvalTX.Hash())
 	if err != nil {
 		return nil, err
@@ -713,7 +712,7 @@ func PLCRFetchBalance(address string) (*big.Int, error) {
 	return balance, nil
 }
 
-// PLCCWithdraw withdraws tokens from the contract and returns it to the user's
+// PLCRWithdraw withdraws tokens from the contract and returns it to the user's
 // multisig wallet
 func PLCRWithdraw(multisigAddress string, amount *big.Int) (*types.Transaction, error) {
 	// Fetch the PLCR contract's address

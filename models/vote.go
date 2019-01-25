@@ -12,12 +12,13 @@ type Vote struct {
 	AccountID int64      `db:"account_id"`
 	Salt      int64      `db:"salt"`
 	Vote      bool       `db:"vote"`
+	Weight    int64      `db:"weight"`
 	Revealed  *time.Time `db:"revealed_at"`
 	CreatedAt *time.Time `db:"created_at"`
 }
 
 // CreateVote instantiates a new Vote struct and persists it to the database
-func CreateVote(account *Account, pollID int64, salt int64, voteVal bool) (*Vote, error) {
+func CreateVote(account *Account, pollID int64, salt int64, voteVal bool, weight int64) (*Vote, error) {
 	db := GetDBSession()
 
 	vote := &Vote{
@@ -25,6 +26,7 @@ func CreateVote(account *Account, pollID int64, salt int64, voteVal bool) (*Vote
 		AccountID: account.ID,
 		Salt:      salt,
 		Vote:      voteVal,
+		Weight:    weight,
 	}
 
 	_, err := db.Exec(`
@@ -32,9 +34,10 @@ func CreateVote(account *Account, pollID int64, salt int64, voteVal bool) (*Vote
 			poll_id,
 			account_id,
 			salt,
-			vote
-		) VALUES($1, $2, $3, $4)
-	`, vote.PollID, vote.AccountID, vote.Salt, vote.Vote)
+			vote,
+			weight
+		) VALUES($1, $2, $3, $4, $5)
+	`, vote.PollID, vote.AccountID, vote.Salt, vote.Vote, vote.Weight)
 
 	if err != nil {
 		return nil, err

@@ -143,7 +143,7 @@ func reveal(application *contracts.RegistryListing, errChan chan<- error) {
 			continue
 		}
 
-		log.Printf("\tRevealing %t vote by %s", vote.Vote, account.TwitterHandle)
+		log.Printf("\tRevealing %t vote by %s (w: %d)", vote.Vote, account.TwitterHandle, vote.Weight)
 		_, err = contracts.PLCRRevealVote(account.MultisigAddress.String, application.ChallengeID, vote.Vote, vote.Salt)
 		if err != nil {
 			errChan <- err

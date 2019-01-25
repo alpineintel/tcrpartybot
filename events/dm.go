@@ -23,17 +23,18 @@ const (
 	noAccountMsg       = "Hmm, I haven't met you yet. If you want to join the TCR party send me a tweet that says \"let's party\""
 	inactiveAccountMsg = "The party hasn't started just yet. Keep an eye on @TCRPartyBot for a launch announcement."
 
-	votingArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'vote [twitter handle] yes' or 'vote [twitter handle] no'"
+	votingArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'vote [twitter handle] kick' or 'vote [twitter handle] keep [vote weight, default 50]'"
 	votingListingNotFoundMsg   = "Hmm, I couldn't find a registry listing for that twitter handle. Are you sure they've been nominated to the registry?"
 	votingChallengeNotFoundMsg = "Looks like that twitter handle doesn't have a challenge opened on it yet. If you'd like to challenge their place on the registry respond with 'challenge %s'."
 	votingChallengeErrorMsg    = "There was an error committing your vote. The admins have been notified!"
 	votedAlreadyMsg            = "Oops! Looks like you've already voted %s on this challenge."
 	votingEndedMsg             = "Ack! Looks like the voting period has ended for this challenge. Hang tight, we'll announce the result on %s."
-	votingSuccessMsg           = "Your vote has been committed! Hang tight, we'll announce the results on %s."
+	votingSuccessMsg           = "Your vote (weight %d) has been committed! Hang tight, we'll announce the results on %s.\n\nTx hash: %s"
+	voteInsufficientFundsMsg   = "You don't have enough funds locked up to vote with a weight of %d. You currently have %d available. If you would like to lock up more tokens to increase your voting weight, reply with vote-deposit [amount]."
 
 	challengeArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'challenge [twitter handle]'. Eg: 'challenge weratedogs'"
 	challengeNotFoundMsg          = "Looks like nobody has tried creating a listing for this twitter handle yet."
-	challengeAlreadyExistsMsg     = "Looks like somebody has already begun a challenge for this twitter handle. You can support this challenge by voting yes (respond with 'vote %s yes')."
+	challengeAlreadyExistsMsg     = "Looks like somebody has already begun a challenge for this twitter handle. You can support this challenge by voting kick (respond with 'vote %s kick')."
 	challengeInsufficientFundsMsg = "Drat, looks like you don't have enough TCRP to start a challenge. You'll need 500 available in your wallet."
 	challengeSubmissionErrorMsg   = "There was an error trying to submit your challenge. The admins have been notified!"
 	challengeSuccessMsg           = "We've submitted your challenge to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
@@ -61,9 +62,9 @@ const (
 	plcrWithdrawInsufficientFunds   = "Whoops, you only have %d tokens locked up."
 	plcrWithdrawSuccessMsg          = "Your tokens have been withdrawn successfully! TX hash: %s"
 
-	depositAmount = 500
-	voteAmount    = 50
-	faucetAmount  = 50
+	depositAmount     = 500
+	defaultVoteWeight = 50
+	faucetAmount      = 50
 )
 
 // RegistrationEventData collects the required data for keeping track of
@@ -459,7 +460,7 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 }
 
 func handleVote(account *models.Account, argv []string, sendDM func(string)) error {
-	if len(argv) != 3 {
+	if len(argv) < 3 {
 		sendDM(votingArgErrorMsg)
 		return nil
 	}
@@ -473,7 +474,28 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return errors.New("User attempted to vote without a multisig address")
 	}
 
-	// TODO: Check token balance on the PLCR contract
+	weight := contracts.GetAtomicTokenAmount(defaultVoteWeight)
+
+	if len(argv) > 3 {
+		intWeight, err := strconv.ParseInt(argv[3], 10, 64)
+		if err != nil {
+			return err
+		}
+
+		weight = contracts.GetAtomicTokenAmount(intWeight)
+	}
+
+	// Make sure their weight is within their means
+	balance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	if balance.Cmp(weight) == -1 {
+		msg := fmt.Sprintf(voteInsufficientFundsMsg, weight.Int64(), contracts.GetHumanTokenAmount(balance).Int64())
+		sendDM(msg)
+		return nil
+	}
 
 	// Check to make sure there is an active poll for the given listing
 	listing, err := contracts.GetListingFromHandle(argv[1])
@@ -520,17 +542,18 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	}
 
 	voteValue := argv[2] == "keep"
-	salt, _, err := contracts.PLCRCommitVote(account.MultisigAddress.String, listing.ChallengeID, big.NewInt(voteAmount), voteValue)
+	salt, tx, err := contracts.PLCRCommitVote(account.MultisigAddress.String, listing.ChallengeID, weight, voteValue)
 	if err != nil {
 		return err
 	}
 
-	_, err = models.CreateVote(account, listing.ChallengeID.Int64(), salt, voteValue)
+	humanWeight := contracts.GetHumanTokenAmount(weight).Int64()
+	_, err = models.CreateVote(account, listing.ChallengeID.Int64(), salt, voteValue, humanWeight)
 	if err != nil {
 		return err
 	}
 
-	sendDM(fmt.Sprintf(votingSuccessMsg, fmtRevealDate))
+	sendDM(fmt.Sprintf(votingSuccessMsg, humanWeight, fmtRevealDate, tx.Hash().Hex()))
 	return nil
 }
 

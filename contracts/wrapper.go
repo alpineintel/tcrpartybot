@@ -697,3 +697,27 @@ func PLCRFetchBalance(address string) (*big.Int, error) {
 
 	return balance, nil
 }
+
+// PLCCWithdraw withdraws tokens from the contract and returns it to the user's
+// multisig wallet
+func PLCRWithdraw(multisigAddress string, amount *big.Int) (*types.Transaction, error) {
+	// Fetch the PLCR contract's address
+	plcrAddress, err := GetPLCRContractAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Withdrawing %d into PLCR contract for %s", GetHumanTokenAmount(amount).Int64(), multisigAddress)
+	// Send off a request for voting rights for the given amount
+	proxiedTX, err := newProxiedTransaction(
+		plcrAddress,
+		PLCRVotingABI,
+		"withdrawVotingRights",
+		amount,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return submitTransaction(multisigAddress, proxiedTX)
+}

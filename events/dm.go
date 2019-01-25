@@ -58,6 +58,8 @@ const (
 	voteBalanceMsg                  = "You have %d tokens deposited to vote. This means you can vote with a maximum weight of %d."
 	plcrDepositInsufficientFundsMsg = "Whoops, looks like you don't have enough tokens to deposit this amount to your maximum voting weight. Your current balance is %d"
 	plcrDepositSuccessMsg           = "Your tokens have been deposited successfully! TX Hash: %s"
+	plcrWithdrawInsufficientFunds   = "Whoops, you only have %d tokens locked up."
+	plcrWithdrawSuccessMsg          = "Your tokens have been withdrawn successfully! TX hash: %s"
 
 	depositAmount = 500
 	voteAmount    = 50
@@ -233,6 +235,8 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		err = handleVoteBalance(account, argv, sendDM)
 	case "vote-deposit":
 		err = handleVoteDeposit(account, argv, sendDM)
+	case "vote-withdraw":
+		err = handleVoteWithdraw(account, argv, sendDM)
 	case "help":
 		sendDM(helpMsg)
 	default:
@@ -567,7 +571,7 @@ func handleFaucet(account *models.Account, argv []string, sendDM func(string)) e
 
 func handleVoteBalance(account *models.Account, argv []string, sendDM func(string)) error {
 	if !account.MultisigAddress.Valid {
-		err := errors.New("User attempted to vote without a multisig address")
+		err := errors.New("User attempted to fetch PLCR balance without a multisig address")
 		sendDM(fmt.Sprintf(errorMsg, err.Error()))
 		return err
 	}
@@ -585,7 +589,7 @@ func handleVoteBalance(account *models.Account, argv []string, sendDM func(strin
 
 func handleVoteDeposit(account *models.Account, argv []string, sendDM func(string)) error {
 	if !account.MultisigAddress.Valid {
-		err := errors.New("User attempted to vote without a multisig address")
+		err := errors.New("User attempted to PLCRDeposit without a multisig address")
 		sendDM(fmt.Sprintf(errorMsg, err.Error()))
 		return err
 	}
@@ -610,5 +614,35 @@ func handleVoteDeposit(account *models.Account, argv []string, sendDM func(strin
 	}
 
 	sendDM(fmt.Sprintf(plcrDepositSuccessMsg, tx.Hash().Hex()))
+	return nil
+}
+
+func handleVoteWithdraw(account *models.Account, argv []string, sendDM func(string)) error {
+	if !account.MultisigAddress.Valid {
+		err := errors.New("User attempted to PLCRwithdraw without a multisig address")
+		sendDM(fmt.Sprintf(errorMsg, err.Error()))
+		return err
+	}
+	amount, err := strconv.ParseInt(argv[1], 10, 64)
+	toWithdraw := contracts.GetAtomicTokenAmount(amount)
+
+	balance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	if balance.Cmp(toWithdraw) == -1 {
+		msg := fmt.Sprintf(plcrWithdrawInsufficientFunds, contracts.GetHumanTokenAmount(balance).Int64())
+		sendDM(msg)
+		return nil
+	}
+
+	tx, err := contracts.PLCRWithdraw(account.MultisigAddress.String, toWithdraw)
+	if err != nil {
+		sendDM(fmt.Sprintf(errorMsg, err.Error()))
+		return err
+	}
+
+	sendDM(fmt.Sprintf(plcrWithdrawSuccessMsg, tx.Hash().Hex()))
 	return nil
 }

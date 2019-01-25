@@ -670,3 +670,30 @@ func PLCRRevealVote(multisigAddress string, pollID *big.Int, vote bool, salt int
 
 	return submitTransaction(multisigAddress, proxiedTX)
 }
+
+// PLCRFetchBalance returns the amount of tokens deposited into the voting
+// contract
+func PLCRFetchBalance(address string) (*big.Int, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the PLCR contract's address
+	plcrAddress, err := GetPLCRContractAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	plcr, err := NewPLCRVoting(plcrAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	balance, err := plcr.VoteTokenBalance(nil, common.HexToAddress(address))
+	if err != nil {
+		return nil, err
+	}
+
+	return balance, nil
+}

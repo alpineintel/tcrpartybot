@@ -54,6 +54,8 @@ const (
 	helpMsg                     = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge."
 	cannotHitFaucetMsg          = "Ack, I can only let you hit the faucet once per day. Try again %s."
 	hitFaucetMsg                = "You got it. %d TCRP headed your way. TX Hash: %s"
+	errorMsg                    = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
+	voteBalanceMsg              = "You have %d tokens deposited to vote. This means you can vote with a maximum weight of %d."
 
 	depositAmount = 500
 	voteAmount    = 50
@@ -225,6 +227,8 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		err = handleVote(account, argv, sendDM)
 	case "faucet":
 		err = handleFaucet(account, argv, sendDM)
+	case "vote-balance":
+		err = handleVoteBalance(account, argv, sendDM)
 	case "help":
 		sendDM(helpMsg)
 	default:
@@ -554,5 +558,23 @@ func handleFaucet(account *models.Account, argv []string, sendDM func(string)) e
 
 	log.Printf("Faucet hit: %d tokens to %s (%d). TX: %s", faucetAmount, account.TwitterHandle, account.ID, tx.Hash().Hex())
 	sendDM(fmt.Sprintf(hitFaucetMsg, faucetAmount, tx.Hash().Hex()))
+	return nil
+}
+
+func handleVoteBalance(account *models.Account, argv []string, sendDM func(string)) error {
+	if !account.MultisigAddress.Valid {
+		err := errors.New("User attempted to vote without a multisig address")
+		sendDM(fmt.Sprintf(errorMsg, err.Error()))
+		return err
+	}
+
+	balance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	if err != nil {
+		sendDM(fmt.Sprintf(errorMsg, err.Error()))
+		return err
+	}
+
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+	sendDM(fmt.Sprintf(voteBalanceMsg, humanBalance, humanBalance))
 	return nil
 }

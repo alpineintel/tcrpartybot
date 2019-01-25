@@ -58,7 +58,8 @@ const (
 	errorMsg                        = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
 	voteBalanceMsg                  = "You have %d tokens deposited to vote. This means you can vote with a maximum weight of %d."
 	plcrDepositInsufficientFundsMsg = "Whoops, looks like you don't have enough tokens to deposit this amount to your maximum voting weight. Your current balance is %d"
-	plcrDepositSuccessMsg           = "Your tokens have been deposited successfully! TX Hash: %s"
+	plcrDepositBeginMsg             = "I've submitted your tokens for deposit. Hang tight, I'll let you know when everything clears. (tx hash: %s)"
+	plcrDepositSuccessMsg           = "Your tokens have been deposited successfully!"
 	plcrWithdrawInsufficientFunds   = "Whoops, you only have %d tokens locked up."
 	plcrWithdrawSuccessMsg          = "Your tokens have been withdrawn successfully! TX hash: %s"
 
@@ -631,12 +632,13 @@ func handleVoteDeposit(account *models.Account, argv []string, sendDM func(strin
 	}
 
 	tx, err := contracts.PLCRDeposit(account.MultisigAddress.String, toDeposit)
+	sendDM(fmt.Sprintf(plcrDepositBeginMsg, tx.Hash().Hex()))
 	if err != nil {
 		sendDM(fmt.Sprintf(errorMsg, err.Error()))
 		return err
 	}
 
-	sendDM(fmt.Sprintf(plcrDepositSuccessMsg, tx.Hash().Hex()))
+	sendDM(plcrDepositSuccessMsg)
 	return nil
 }
 

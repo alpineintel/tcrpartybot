@@ -278,7 +278,20 @@ func AwaitTransactionConfirmation(txHash common.Hash) (*types.Receipt, error) {
 	ctx, cancel := context.WithDeadline(emptyCtx, time.Now().Add(time.Minute*3))
 	defer cancel()
 
-	return client.TransactionReceipt(ctx, txHash)
+	var retryDelay time.Duration = 1
+	for {
+		receipt, err := client.TransactionReceipt(ctx, txHash)
+
+		if err != nil && retryDelay > 4 {
+			return nil, err
+		} else if err == ethereum.NotFound {
+			time.Sleep(retryDelay * time.Second)
+			retryDelay = retryDelay * 2
+			continue
+		}
+
+		return receipt, err
+	}
 }
 
 // ApplicationWasMade returns true or false depending on whether or not a
@@ -566,6 +579,8 @@ func PLCRDeposit(multisigAddress string, amount *big.Int) (*types.Transaction, e
 		return nil, err
 	}
 
+	// Wait a bit for the transaction to propagate
+	time.Sleep(100)
 	_, err = AwaitTransactionConfirmation(approvalTX.Hash())
 	if err != nil {
 		return nil, err

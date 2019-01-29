@@ -49,6 +49,11 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 				continue
 			}
 
+			// Don't retweet replies
+			if tweet.InReplyToStatusIDStr != "" {
+				continue
+			}
+
 			log.Printf("New tweet from @%s", tweet.User.ScreenName)
 			err = twitter.Retweet(twitter.PartyBotHandle, tweet.ID)
 			if err != nil {

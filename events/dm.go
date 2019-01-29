@@ -75,6 +75,10 @@ type RegistrationEventData struct {
 	Account   *models.Account
 }
 
+func parseHandle(handle string) string {
+	return strings.ToLower(strings.Replace(handle, "@", "", -1))
+}
+
 func generateSendDM(account *models.Account, errChan chan<- error) func(message string) {
 	return func(message string) {
 		// Prevent us from spamming
@@ -305,7 +309,8 @@ func handleNomination(account *models.Account, argv []string, sendDM func(string
 		return nil
 	}
 
-	alreadyApplied, err := contracts.ApplicationWasMade(argv[1])
+	handle := parseHandle(argv[1])
+	alreadyApplied, err := contracts.ApplicationWasMade(handle)
 	if err != nil {
 		return err
 	}
@@ -317,7 +322,7 @@ func handleNomination(account *models.Account, argv []string, sendDM func(string
 
 	// Calculate the atomic number of tokens needed to apply
 	tokens := contracts.GetAtomicTokenAmount(depositAmount)
-	tx, err := contracts.Apply(account.MultisigAddress.String, tokens, argv[1])
+	tx, err := contracts.Apply(account.MultisigAddress.String, tokens, handle)
 	if err != nil {
 		sendDM(nominateSubmissionErrorMsg)
 		return err
@@ -364,7 +369,8 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 		return nil
 	}
 
-	listing, err := contracts.GetListingFromHandle(argv[1])
+	handle := parseHandle(argv[1])
+	listing, err := contracts.GetListingFromHandle(handle)
 	if err != nil {
 		return err
 	} else if listing == nil {
@@ -377,13 +383,13 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 		}
 
 		if !challenge.Resolved {
-			sendDM(fmt.Sprintf(challengeAlreadyExistsMsg, argv[1]))
+			sendDM(fmt.Sprintf(challengeAlreadyExistsMsg, handle))
 			return nil
 		}
 	}
 
 	tokens := contracts.GetAtomicTokenAmount(depositAmount)
-	tx, err := contracts.CreateChallenge(account.MultisigAddress.String, tokens, argv[1])
+	tx, err := contracts.CreateChallenge(account.MultisigAddress.String, tokens, handle)
 	if err != nil {
 		sendDM(challengeSubmissionErrorMsg)
 		return err
@@ -410,6 +416,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	}
 
 	weight := contracts.GetAtomicTokenAmount(defaultVoteWeight)
+	handle := parseHandle(argv[1])
 
 	if len(argv) > 3 {
 		intWeight, err := strconv.ParseInt(argv[3], 10, 64)
@@ -433,13 +440,13 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	}
 
 	// Check to make sure there is an active poll for the given listing
-	listing, err := contracts.GetListingFromHandle(argv[1])
+	listing, err := contracts.GetListingFromHandle(handle)
 	if err != nil {
 	} else if listing == nil {
 		sendDM(votingListingNotFoundMsg)
 		return nil
 	} else if listing.ChallengeID.Cmp(big.NewInt(0)) == 0 {
-		sendDM(fmt.Sprintf(votingChallengeNotFoundMsg, argv[1]))
+		sendDM(fmt.Sprintf(votingChallengeNotFoundMsg, handle))
 		return nil
 	}
 

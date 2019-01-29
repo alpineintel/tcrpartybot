@@ -320,6 +320,58 @@ func (server *Server) redeployWallet(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(tx.Hash().Hex()))
 }
 
+func (server *Server) activate(w http.ResponseWriter, r *http.Request) {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	id, err := strconv.ParseInt(buf.String(), 10, 64)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	account, err := models.FindAccountByID(id)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	// Get their wallet address
+	if !account.MultisigAddress.Valid {
+		w.WriteHeader(400)
+		w.Write([]byte("User does not have multisig wallet"))
+		return
+	}
+
+	// Activate their account
+	err = account.MarkActivated()
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Activation error: " + err.Error()))
+		return
+	}
+
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Balance error: " + err.Error()))
+		return
+	}
+
+	// Send 'em a message
+	humanBalance := contracts.GetHumanTokenAmount(balance)
+	err = twitter.SendDM(account.TwitterID, fmt.Sprintf(disbursementMsg, humanBalance))
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Twitter error: " + err.Error()))
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write([]byte("Ok"))
+}
+
 func (server *Server) distributeTokens(w http.ResponseWriter, r *http.Request) {
 	// Convert body to an int (this will be the user ID we write to)
 	buf := new(bytes.Buffer)
@@ -394,6 +446,7 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	http.HandleFunc("/admin/authenticate-party", requireAuth(server.authenticateParty))
 	http.HandleFunc("/admin/distribute-tokens", requireAuth(server.distributeTokens))
 	http.HandleFunc("/admin/redeploy-wallet", requireAuth(server.redeployWallet))
+	http.HandleFunc("/admin/activate", requireAuth(server.activate))
 
 	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {

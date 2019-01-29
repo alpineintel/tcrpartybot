@@ -56,6 +56,8 @@ const (
 	hitFaucetMsg                    = "You got it. %d TCRP headed your way. TX Hash: %s"
 	errorMsg                        = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
 	voteBalanceMsg                  = "You have %d tokens deposited to vote. This means you can vote with a maximum weight of %d."
+	plcrWithdrawArgErrorMsg         = "Whoops, looks like you forgot something. Try vote-withdraw [amount]"
+	plcrDepositArgErrorMsg          = "Whoops, looks like you forgot something. Try vote-deposit [amount]"
 	plcrDepositInsufficientFundsMsg = "Whoops, looks like you don't have enough tokens to deposit this amount to your maximum voting weight. Your current balance is %d"
 	plcrDepositBeginMsg             = "I've submitted your tokens for deposit. Hang tight, I'll let you know when everything clears."
 	plcrDepositSuccessMsg           = "Your tokens have been deposited successfully! (tx hash: %s)"
@@ -427,14 +429,52 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		weight = contracts.GetAtomicTokenAmount(intWeight)
 	}
 
-	// Make sure their weight is within their means
+	humanWeight := contracts.GetHumanTokenAmount(weight).Int64()
+
+	// Fetch their PLCR deposit
 	balance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
 	if err != nil {
 		return err
 	}
 
+	// If their PLCR deposit is 0 maybe we can help them out
+	if balance.Cmp(big.NewInt(0)) == 0 {
+		walletBalance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+		if err != nil {
+			return err
+		}
+
+		// They don't even have enough tokens in their balance, let's stop
+		compare := walletBalance.Cmp(big.NewInt(defaultVoteWeight))
+		if compare == -1 {
+			msg := fmt.Sprintf(voteInsufficientFundsMsg, humanWeight, contracts.GetHumanTokenAmount(balance).Int64())
+			sendDM(msg)
+			return nil
+		}
+
+		// Cool, let's put some tokens in their account to vote with
+		toDeposit := contracts.GetAtomicTokenAmount(defaultVoteWeight)
+		tx, err := contracts.PLCRDeposit(account.MultisigAddress.String, toDeposit)
+		if err != nil {
+			sendDM(fmt.Sprintf(errorMsg, err.Error()))
+			return err
+		}
+
+		log.Printf("%s did not have any tokens for voting, depositing on their behalf (tx: %s)", account.TwitterHandle, tx.Hash().Hex())
+		_, err = contracts.AwaitTransactionConfirmation(tx.Hash())
+		if err != nil {
+			return err
+		}
+
+		// Fetch their balance again to make sure we're all good
+		balance, err = contracts.PLCRFetchBalance(account.MultisigAddress.String)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Make sure their weight is within their means
 	if balance.Cmp(weight) == -1 {
-		humanWeight := contracts.GetHumanTokenAmount(weight).Int64()
 		msg := fmt.Sprintf(voteInsufficientFundsMsg, humanWeight, contracts.GetHumanTokenAmount(balance).Int64())
 		sendDM(msg)
 		return nil
@@ -499,7 +539,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return err
 	}
 
-	humanWeight := contracts.GetHumanTokenAmount(weight).Int64()
+	humanWeight = contracts.GetHumanTokenAmount(weight).Int64()
 	_, err = models.CreateVote(account, listing.ChallengeID.Int64(), salt, voteValue, humanWeight)
 	if err != nil {
 		return err
@@ -563,6 +603,11 @@ func handleVoteBalance(account *models.Account, argv []string, sendDM func(strin
 }
 
 func handleVoteDeposit(account *models.Account, argv []string, sendDM func(string)) error {
+	if len(argv) < 2 {
+		sendDM(plcrDepositArgErrorMsg)
+		return nil
+	}
+
 	if !account.MultisigAddress.Valid {
 		err := errors.New("User attempted to PLCRDeposit without a multisig address")
 		sendDM(fmt.Sprintf(errorMsg, err.Error()))
@@ -594,6 +639,11 @@ func handleVoteDeposit(account *models.Account, argv []string, sendDM func(strin
 }
 
 func handleVoteWithdraw(account *models.Account, argv []string, sendDM func(string)) error {
+	if len(argv) < 2 {
+		sendDM(plcrWithdrawArgErrorMsg)
+		return nil
+	}
+
 	if !account.MultisigAddress.Valid {
 		err := errors.New("User attempted to PLCRwithdraw without a multisig address")
 		sendDM(fmt.Sprintf(errorMsg, err.Error()))

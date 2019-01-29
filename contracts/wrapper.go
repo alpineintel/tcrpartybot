@@ -721,7 +721,7 @@ func PLCRWithdraw(multisigAddress string, amount *big.Int) (*types.Transaction, 
 		return nil, err
 	}
 
-	log.Printf("Withdrawing %d into PLCR contract for %s", GetHumanTokenAmount(amount).Int64(), multisigAddress)
+	log.Printf("Withdrawing %d from PLCR contract for %s", GetHumanTokenAmount(amount).Int64(), multisigAddress)
 	// Send off a request for voting rights for the given amount
 	proxiedTX, err := newProxiedTransaction(
 		plcrAddress,

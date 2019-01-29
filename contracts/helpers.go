@@ -5,8 +5,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -70,6 +72,20 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 	if err != nil {
 		return nil, err
 	}
+
+	// Add a bit more to the gas price to increase the chances the tx will get
+	// picked up.
+	gasModifierStr := os.Getenv("GAS_MODIFIER")
+	if gasModifierStr != "" {
+		gasModifier, err := strconv.ParseInt(gasModifierStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse GAS_MODIFIER; check your environment")
+		}
+
+		gasPrice.Add(gasPrice, big.NewInt(gasModifier))
+	}
+
+	fmt.Println("GAS PRICE IS ", gasPrice.String())
 
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))

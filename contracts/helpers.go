@@ -85,8 +85,6 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 		gasPrice.Add(gasPrice, big.NewInt(gasModifier))
 	}
 
-	fmt.Println("GAS PRICE IS ", gasPrice.String())
-
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)

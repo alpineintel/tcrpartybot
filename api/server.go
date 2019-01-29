@@ -286,6 +286,40 @@ func (server *Server) authenticateParty(w http.ResponseWriter, r *http.Request) 
 	authenticateUser(os.Getenv("PARTY_BOT_HANDLE"), w, r)
 }
 
+func (server *Server) redeployWallet(w http.ResponseWriter, r *http.Request) {
+	// Convert body to an int (this will be the user ID we write to)
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	id, err := strconv.ParseInt(buf.String(), 10, 64)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	account, err := models.FindAccountByID(id)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	tx, identifier, err := contracts.DeployWallet()
+	if err != nil {
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	err = account.SetMultisigFactoryIdentifier(identifier)
+	if err != nil {
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write([]byte(tx.Hash().Hex()))
+}
+
 func (server *Server) distributeTokens(w http.ResponseWriter, r *http.Request) {
 	// Convert body to an int (this will be the user ID we write to)
 	buf := new(bytes.Buffer)
@@ -359,6 +393,7 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	http.HandleFunc("/admin/authenticate-vip", requireAuth(server.authenticateVIP))
 	http.HandleFunc("/admin/authenticate-party", requireAuth(server.authenticateParty))
 	http.HandleFunc("/admin/distribute-tokens", requireAuth(server.distributeTokens))
+	http.HandleFunc("/admin/redeploy-wallet", requireAuth(server.redeployWallet))
 
 	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {

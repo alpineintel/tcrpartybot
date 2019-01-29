@@ -29,7 +29,7 @@ const (
 	votedAlreadyMsg            = "Oops! Looks like you've already voted %s on this challenge."
 	votingEndedMsg             = "Ack! Looks like the voting period has ended for this challenge. Hang tight, we'll announce the result on %s."
 	votingSuccessMsg           = "Your vote (weight %d) has been committed! Hang tight, we'll announce the results on %s.\n\nTx hash: %s"
-	voteInsufficientFundsMsg   = "You don't have enough funds locked up to vote with a weight of %d. You currently have %d available. If you would like to lock up more tokens to increase your voting weight, reply with vote-deposit [amount]."
+	voteInsufficientFundsMsg   = "You don't have enough funds locked up to vote with a weight of %d. You currently have %d available. If you would like to lock up more tokens to increase your voting weight, reply with vote-deposit [amount]. 50 is usually a good starting number.\n\nRemember that any tokens you lock up for voting will be unavailable for use in nominations/challenges."
 
 	challengeArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'challenge [twitter handle]'. Eg: 'challenge weratedogs'"
 	challengeNotFoundMsg          = "Looks like nobody has tried creating a listing for this twitter handle yet."
@@ -51,7 +51,7 @@ const (
 	preregistrationSuccessMsg       = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
 	registrationSuccessMsg          = "🎉 Awesome! Now that you're registered I'll need a few minutes to build your wallet and give you some TCR Party Points to get started with. I'll send you a DM once I'm done."
 	invalidCommandMsg               = "Whoops, I don't recognize that command. Try typing help to see what you can say to me."
-	helpMsg                         = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge."
+	helpMsg                         = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge.\n• vote-balance - See the number of tokens you currently have locked up for voting.\n• vote-deposit [amount] - Lock up tokens to increase your maximum voting weight\n• vote-withdraw [amount] - Unlock tokens to your normal balance (for nominating/challenging)."
 	cannotHitFaucetMsg              = "Ack, I can only let you hit the faucet once per day. Try again %s."
 	hitFaucetMsg                    = "You got it. %d TCRP headed your way. TX Hash: %s"
 	errorMsg                        = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
@@ -434,7 +434,8 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	}
 
 	if balance.Cmp(weight) == -1 {
-		msg := fmt.Sprintf(voteInsufficientFundsMsg, weight.Int64(), contracts.GetHumanTokenAmount(balance).Int64())
+		humanWeight := contracts.GetHumanTokenAmount(weight).Int64()
+		msg := fmt.Sprintf(voteInsufficientFundsMsg, humanWeight, contracts.GetHumanTokenAmount(balance).Int64())
 		sendDM(msg)
 		return nil
 	}
@@ -442,10 +443,19 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	// Check to make sure there is an active poll for the given listing
 	listing, err := contracts.GetListingFromHandle(handle)
 	if err != nil {
+		return err
 	} else if listing == nil {
-		sendDM(votingListingNotFoundMsg)
-		return nil
-	} else if listing.ChallengeID.Cmp(big.NewInt(0)) == 0 {
+		// Check to see if the listing is using an @
+		listing, err = contracts.GetListingFromHandle("@" + handle)
+		if err != nil {
+			return err
+		} else if listing == nil {
+			sendDM(votingListingNotFoundMsg)
+			return nil
+		}
+	}
+
+	if listing.ChallengeID.Cmp(big.NewInt(0)) == 0 {
 		sendDM(fmt.Sprintf(votingChallengeNotFoundMsg, handle))
 		return nil
 	}

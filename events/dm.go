@@ -11,7 +11,6 @@ import (
 	"time"
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	goTwitter "github.com/stevenleeg/go-twitter/twitter"
 
 	"github.com/dustin/go-humanize"
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
@@ -74,71 +73,6 @@ type RegistrationEventData struct {
 	Event     *TwitterEvent
 	Challenge *models.RegistrationChallengeRegistrationQuestion
 	Account   *models.Account
-}
-
-// ListenForTwitterDM is a blocking function which polls the Twitter API for
-// new direct messages and sends them off to the eventChan for further
-// processing as they are received.
-func ListenForTwitterDM(handle string, eventChan chan<- *TwitterEvent, errChan chan<- error) {
-	client, token, err := twitter.GetClientFromHandle(handle)
-	if err != nil {
-		log.Println("Could not establish client listening to DMs")
-		errChan <- err
-		return
-	}
-
-	for {
-		latestID, err := models.GetKey("latestDirectMessageID")
-		if err != nil {
-			log.Println("Error fetching latest ID")
-			errChan <- err
-			return
-		}
-
-		var cursor string
-		for {
-			params := &goTwitter.DirectMessageEventsListParams{
-				Cursor: cursor,
-				Count:  20,
-			}
-			events, _, err := client.DirectMessages.EventsList(params)
-			if err != nil {
-				log.Println("Could not fetch event feed")
-				errChan <- err
-				time.Sleep(2 * time.Minute)
-				break
-			}
-
-			// Store the latest cursor in our keyval store
-			models.SetKey("latestDirectMessageID", events.Events[0].ID)
-
-			for _, event := range events.Events {
-				if event.Type != "message_create" {
-					continue
-				}
-
-				// If this condition is true we've hit the most recently processed
-				// event on the last pull and don't need to process the remainder
-				// of the list.
-				if event.ID == latestID {
-					break
-				}
-
-				// If we are the sender we can safely ignore the value
-				if event.Message.SenderID == strconv.FormatInt(token.TwitterID, 10) {
-					continue
-				}
-
-				log.Printf("Received DM from %s: %s", event.Message.SenderID, event.Message.Data.Text)
-			}
-
-			time.Sleep(1 * time.Minute)
-			if events.NextCursor == "" {
-				break
-			}
-			cursor = events.NextCursor
-		}
-	}
 }
 
 func generateSendDM(account *models.Account, errChan chan<- error) func(message string) {
@@ -222,7 +156,7 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		return
 	}
 
-	switch argv[0] {
+	switch strings.ToLower(argv[0]) {
 	case "balance":
 		err = handleBalance(account, argv, sendDM)
 	case "nominate":

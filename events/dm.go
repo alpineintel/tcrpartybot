@@ -51,7 +51,7 @@ const (
 	preregistrationSuccessMsg       = "🎉 Awesome! You've been registered for the party. We'll reach out once we're ready to distribute TCRP tokens 🎈."
 	registrationSuccessMsg          = "🎉 Awesome! Now that you're registered I'll need a few minutes to build your wallet and give you some TCR Party Points to get started with. I'll send you a DM once I'm done."
 	invalidCommandMsg               = "Whoops, I don't recognize that command. Try typing help to see what you can say to me."
-	helpMsg                         = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge.\n\nThose are the basics, but you can check out https://www.tcr.party for more advanced commands."
+	helpMsg                         = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge.\n• faucet – Get 100 free tokens per day.\nThose are the basics, but you can check out https://www.tcr.party for more advanced commands."
 	cannotHitFaucetMsg              = "Ack, I can only let you hit the faucet once per day. Try again %s."
 	hitFaucetMsg                    = "You got it. %d TCRP headed your way. TX Hash: %s"
 	errorMsg                        = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
@@ -66,7 +66,7 @@ const (
 
 	depositAmount     = 500
 	defaultVoteWeight = 50
-	faucetAmount      = 50
+	faucetAmount      = 100
 )
 
 // RegistrationEventData collects the required data for keeping track of

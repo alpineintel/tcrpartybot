@@ -537,7 +537,7 @@ func (server *Server) activate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Make sure they have enough tokens to vote
-	plcrBalance, err = contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	plcrBalance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
 	if err != nil {
 		w.WriteHeader(400)
 		w.Write([]byte("Error: " + err.Error()))

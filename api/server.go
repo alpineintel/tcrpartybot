@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
 	"strconv"
@@ -344,18 +345,54 @@ func (server *Server) activate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Balance error: " + err.Error()))
+		return
+	}
+
+	// Should we give them more tokens?
+	initialAmountInt, err := strconv.ParseInt(os.Getenv("INITIAL_DISTRIBUTION_AMOUNT"), 10, 64)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+	diff := contracts.GetAtomicTokenAmount(initialAmountInt)
+	diff = diff.Sub(balance, diff)
+
+	if diff.Cmp(big.NewInt(0)) == -1 {
+		diff = diff.Mul(diff, big.NewInt(-1))
+		log.Printf("%s has less than the initial distribution amount. Minting %d tokens!", account.TwitterHandle, diff.Int64())
+
+		tx, err := contracts.MintTokens(account.MultisigAddress.String, diff)
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error minting tokens: " + err.Error()))
+			return
+		}
+
+		if _, err = contracts.AwaitTransactionConfirmation(tx.Hash()); err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error awaiting mint tx: " + err.Error()))
+			return
+		}
+
+		// Refresh their balance
+		balance, err = contracts.GetTokenBalance(account.MultisigAddress.String)
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Balance error: " + err.Error()))
+			return
+		}
+	}
+
 	// Activate their account
 	err = account.MarkActivated()
 	if err != nil {
 		w.WriteHeader(400)
 		w.Write([]byte("Activation error: " + err.Error()))
-		return
-	}
-
-	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Balance error: " + err.Error()))
 		return
 	}
 
@@ -372,67 +409,6 @@ func (server *Server) activate(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Ok"))
 }
 
-func (server *Server) distributeTokens(w http.ResponseWriter, r *http.Request) {
-	// Convert body to an int (this will be the user ID we write to)
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(r.Body)
-	id, err := strconv.ParseInt(buf.String(), 10, 64)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Error: " + err.Error()))
-		return
-	}
-
-	account, err := models.FindAccountByID(id)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Error: " + err.Error()))
-		return
-	}
-
-	// Get their wallet address
-	if !account.MultisigAddress.Valid {
-		w.WriteHeader(400)
-		w.Write([]byte("User does not have multisig wallet"))
-		return
-	}
-
-	// How much TCRP should we give them?
-	amount, err := strconv.ParseInt(os.Getenv("INITIAL_DISTRIBUTION_AMOUNT"), 10, 64)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Error: " + err.Error()))
-		return
-	}
-
-	// Send 'em the tokens
-	atomicAmount := contracts.GetAtomicTokenAmount(amount)
-	tx, err := contracts.MintTokens(account.MultisigAddress.String, atomicAmount)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Error: " + err.Error()))
-		return
-	}
-
-	err = twitter.SendDM(account.TwitterID, fmt.Sprintf(disbursementMsg, amount))
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Twitter error: " + err.Error()))
-		return
-	}
-
-	// Activate their account
-	err = account.MarkActivated()
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Activation error: " + err.Error()))
-		return
-	}
-
-	w.WriteHeader(200)
-	w.Write([]byte(tx.Hash().Hex()))
-}
-
 // StartServer spins up a webserver for the API
 func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *Server {
 	server := &Server{
@@ -444,7 +420,6 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	http.HandleFunc("/admin/create-webhook", requireAuth(server.createWebhook))
 	http.HandleFunc("/admin/authenticate-vip", requireAuth(server.authenticateVIP))
 	http.HandleFunc("/admin/authenticate-party", requireAuth(server.authenticateParty))
-	http.HandleFunc("/admin/distribute-tokens", requireAuth(server.distributeTokens))
 	http.HandleFunc("/admin/redeploy-wallet", requireAuth(server.redeployWallet))
 	http.HandleFunc("/admin/activate", requireAuth(server.activate))
 

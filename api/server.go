@@ -536,6 +536,33 @@ func (server *Server) activate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Make sure they have enough tokens to vote
+	plcrBalance, err = contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	diff = contracts.GetAtomicTokenAmount(50)
+	diff = diff.Sub(plcrBalance, diff)
+	if diff.Cmp(big.NewInt(0)) == -1 {
+		diff = diff.Mul(diff, big.NewInt(-1))
+		log.Printf("%s has less than 50 tokens locked up for voting, depositing %d tokens!", account.TwitterHandle, diff.Int64())
+		tx, err := contracts.PLCRDeposit(account.MultisigAddress.String, diff)
+		if err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error: " + err.Error()))
+			return
+		}
+
+		if _, err = contracts.AwaitTransactionConfirmation(tx.Hash()); err != nil {
+			w.WriteHeader(400)
+			w.Write([]byte("Error PLCR deposit tx: " + err.Error()))
+			return
+		}
+	}
+
 	// Activate their account
 	err = account.MarkActivated()
 	if err != nil {

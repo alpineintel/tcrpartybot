@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
@@ -64,6 +65,36 @@ type incomingWebhook struct {
 type Server struct {
 	errChan    chan<- error
 	eventsChan chan<- *events.TwitterEvent
+}
+
+func getAccountFromRequestID(body string) (*models.Account, error) {
+	args := strings.Split(body, ",")
+	id, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	account, err := models.FindAccountByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return account, nil
+}
+
+func getIntArgFromRequest(body string) (int64, error) {
+	args := strings.Split(body, ",")
+	fmt.Println(args)
+	if len(args) != 2 {
+		return 0, fmt.Errorf("not enough arguments")
+	}
+
+	val, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return val, nil
 }
 
 func (server *Server) processDMs(dms []incomingDM) {
@@ -288,17 +319,10 @@ func (server *Server) authenticateParty(w http.ResponseWriter, r *http.Request) 
 }
 
 func (server *Server) redeployWallet(w http.ResponseWriter, r *http.Request) {
-	// Convert body to an int (this will be the user ID we write to)
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r.Body)
-	id, err := strconv.ParseInt(buf.String(), 10, 64)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte("Error: " + err.Error()))
-		return
-	}
+	account, err := getAccountFromRequestID(buf.String())
 
-	account, err := models.FindAccountByID(id)
 	if err != nil {
 		w.WriteHeader(400)
 		w.Write([]byte("Error: " + err.Error()))
@@ -313,6 +337,130 @@ func (server *Server) redeployWallet(w http.ResponseWriter, r *http.Request) {
 
 	err = account.SetMultisigFactoryIdentifier(identifier)
 	if err != nil {
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write([]byte(tx.Hash().Hex()))
+}
+
+func (server *Server) voteBalance(w http.ResponseWriter, r *http.Request) {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	account, err := getAccountFromRequestID(buf.String())
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	if !account.MultisigAddress.Valid {
+		w.WriteHeader(400)
+		w.Write([]byte("Account does not have a multisig address"))
+		return
+	}
+
+	balance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+	w.WriteHeader(200)
+	w.Write([]byte(fmt.Sprintf("Voting balance: %d", humanBalance)))
+}
+
+func (server *Server) voteWithdraw(w http.ResponseWriter, r *http.Request) {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	account, err := getAccountFromRequestID(buf.String())
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	if !account.MultisigAddress.Valid {
+		w.WriteHeader(400)
+		w.Write([]byte("Account does not have a multisig address"))
+		return
+	}
+
+	amount, err := getIntArgFromRequest(buf.String())
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	toWithdraw := contracts.GetAtomicTokenAmount(amount)
+	balance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	if balance.Cmp(toWithdraw) == -1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Insufficient funds in PLCR contract"))
+		return
+	}
+
+	tx, err := contracts.PLCRWithdraw(account.MultisigAddress.String, toWithdraw)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write([]byte(tx.Hash().Hex()))
+}
+
+func (server *Server) voteDeposit(w http.ResponseWriter, r *http.Request) {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	account, err := getAccountFromRequestID(buf.String())
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	if !account.MultisigAddress.Valid {
+		w.WriteHeader(400)
+		w.Write([]byte("Account does not have a multisig address"))
+		return
+	}
+
+	amount, err := getIntArgFromRequest(buf.String())
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	toDeposit := contracts.GetAtomicTokenAmount(amount)
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	if balance.Cmp(toDeposit) == -1 {
+		w.WriteHeader(400)
+		w.Write([]byte("Not enough tokens in wallet"))
+		return
+	}
+
+	tx, err := contracts.PLCRDeposit(account.MultisigAddress.String, toDeposit)
+	if err != nil {
+		w.WriteHeader(400)
 		w.Write([]byte("Error: " + err.Error()))
 		return
 	}
@@ -422,6 +570,9 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	http.HandleFunc("/admin/authenticate-party", requireAuth(server.authenticateParty))
 	http.HandleFunc("/admin/redeploy-wallet", requireAuth(server.redeployWallet))
 	http.HandleFunc("/admin/activate", requireAuth(server.activate))
+	http.HandleFunc("/admin/vote-balance", requireAuth(server.voteBalance))
+	http.HandleFunc("/admin/vote-deposit", requireAuth(server.voteDeposit))
+	http.HandleFunc("/admin/vote-withdraw", requireAuth(server.voteWithdraw))
 
 	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {

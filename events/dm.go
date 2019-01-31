@@ -111,7 +111,11 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 	}
 
 	// Looks like they're good to go and are sending a command to the bot
-	argv := strings.Split(event.Message, " ")
+	argv := strings.FieldsFunc(event.Message, func(c rune) bool {
+		return c == ' '
+	})
+
+	log.Println(argv)
 
 	// If they haven't been activated yet (ie pre-registration) then we'll
 	// stop them here

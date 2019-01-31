@@ -41,8 +41,9 @@ const (
 	nominateArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'"
 	nominateAlreadyAppliedMsg    = "Looks like that Twitter handle has already been submitted to the TCR. A twitter handle can only appear on the TCR once, so you'll need to wait for a successful challenge (or a delisting) in order to re-nominate them."
 	nominateInsufficientFundsMsg = "Drat! Looks like you don't have enough TCRP to start a nomination. You'll need 500 available in your wallet."
-	nominateSubmissionErrorMsg   = "There was an error trying to submit your nomination. The admins have been notified!"
-	nominateSuccessMsg           = "We've submitted your nomination to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
+	nominateSubmissionErrorMsg   = "There was an error trying to submit your nomination: %s. Try tweeting at @stevenleeg for help."
+	nominateSuccessMsg           = "All done! Your nomination was submitted in the following transaction: %s.\n\nKeep an eye on @TCRPartyVIP for an announcement."
+	nominateBeginMsg             = "Got it! I've just begun submitting your nomination to the registry and will send a message once everything is confirmed."
 
 	balanceMsg                      = "Your balance is %d TCRP"
 	awaitingPartyBeginMsg           = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
@@ -306,11 +307,13 @@ func handleNomination(account *models.Account, argv []string, sendDM func(string
 		return err
 	}
 
+	// Do they have enough funds to nominate?
 	if balance.Cmp(contracts.GetAtomicTokenAmount(depositAmount)) == -1 {
 		sendDM(nominateInsufficientFundsMsg)
 		return nil
 	}
 
+	// Does this handle already have an active listing?
 	handle := parseHandle(argv[1])
 	alreadyApplied, err := contracts.ApplicationWasMade(handle)
 	if err != nil {
@@ -322,11 +325,14 @@ func handleNomination(account *models.Account, argv []string, sendDM func(string
 		return nil
 	}
 
-	// Calculate the atomic number of tokens needed to apply
+	// Send them a message letting them know the gears are in motion
+	sendDM(nominateBeginMsg)
+
+	// Apply
 	tokens := contracts.GetAtomicTokenAmount(depositAmount)
 	tx, err := contracts.Apply(account.MultisigAddress.String, tokens, handle)
 	if err != nil {
-		sendDM(nominateSubmissionErrorMsg)
+		sendDM(fmt.Sprintf(nominateSubmissionErrorMsg, err.Error()))
 		return err
 	}
 	msg := fmt.Sprintf(nominateSuccessMsg, tx.Hash().Hex())

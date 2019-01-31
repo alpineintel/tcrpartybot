@@ -197,6 +197,11 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 	}
 
 	tx, err := submitTransaction(multisigAddress, proxiedTX)
+	_, err = AwaitTransactionConfirmation(tx.Hash())
+	if err != nil {
+		return nil, err
+	}
+
 	return tx, err
 }
 

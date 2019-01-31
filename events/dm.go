@@ -414,7 +414,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return nil
 	}
 
-	if argv[2] != "keep" && argv[2] != "kick" {
+	if strings.ToLower(argv[2]) != "keep" && strings.ToLower(argv[2]) != "kick" {
 		sendDM(votingArgErrorMsg)
 		return nil
 	}
@@ -539,7 +539,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return nil
 	}
 
-	voteValue := argv[2] == "keep"
+	voteValue := strings.ToLower(argv[2]) == "keep"
 	salt, tx, err := contracts.PLCRCommitVote(account.MultisigAddress.String, listing.ChallengeID, weight, voteValue)
 	if err != nil {
 		return err

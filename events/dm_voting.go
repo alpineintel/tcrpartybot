@@ -20,7 +20,8 @@ const (
 	votingChallengeErrorMsg         = "There was an error committing your vote. The admins have been notified!"
 	votedAlreadyMsg                 = "Oops! Looks like you've already voted %s on this challenge."
 	votingEndedMsg                  = "Ack! Looks like the voting period has ended for this challenge. Hang tight, we'll announce the result on %s."
-	votingSuccessMsg                = "Your vote (weight %d) has been committed! Hang tight, we'll announce the results on %s.\n\nTx hash: %s"
+	votingBeginMsg                  = "We've submitted your vote. Hang tight, we'll notify you once everything is confirmed."
+	votingSuccessMsg                = "Your vote to %s %s's listing with a weight of %d has been confirmed!\n\nWe'll announce the results on %s.\n\nTx hash: %s"
 	voteInsufficientFundsMsg        = "You don't have enough funds locked up to vote with a weight of %d. You currently have %d available. If you would like to lock up more tokens to increase your voting weight, reply with vote-deposit [amount]. 50 is usually a good starting number.\n\nRemember that any tokens you lock up for voting will be unavailable for use in nominations/challenges."
 	voteBalanceMsg                  = "You have %d tokens deposited to vote. This means you can vote with a maximum weight of %d."
 	plcrWithdrawArgErrorMsg         = "Whoops, looks like you forgot something. Try vote-withdraw [amount]"
@@ -39,7 +40,8 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return nil
 	}
 
-	if strings.ToLower(argv[2]) != "keep" && strings.ToLower(argv[2]) != "kick" {
+	voteDirection := strings.ToLower(argv[2])
+	if voteDirection != "keep" && voteDirection != "kick" {
 		sendDM(votingArgErrorMsg)
 		return nil
 	}
@@ -164,9 +166,16 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return nil
 	}
 
-	voteValue := strings.ToLower(argv[2]) == "keep"
+	sendDM(votingBeginMsg)
+
+	voteValue := voteDirection == "keep"
 	salt, tx, err := contracts.PLCRCommitVote(account.MultisigAddress.String, listing.ChallengeID, weight, voteValue)
 	if err != nil {
+		return err
+	}
+
+	// Wait for the vote to clear
+	if _, err := contracts.AwaitTransactionConfirmation(tx.Hash()); err != nil {
 		return err
 	}
 
@@ -176,7 +185,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return err
 	}
 
-	sendDM(fmt.Sprintf(votingSuccessMsg, humanWeight, fmtRevealDate, tx.Hash().Hex()))
+	sendDM(fmt.Sprintf(votingSuccessMsg, voteDirection, handle, humanWeight, fmtRevealDate, tx.Hash().Hex()))
 	return nil
 }
 

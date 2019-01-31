@@ -61,9 +61,10 @@ const (
 	plcrDepositArgErrorMsg          = "Whoops, looks like you forgot something. Try vote-deposit [amount]"
 	plcrDepositInsufficientFundsMsg = "Whoops, looks like you don't have enough tokens to deposit this amount to your maximum voting weight. Your current balance is %d"
 	plcrDepositBeginMsg             = "I've submitted your tokens for deposit. Hang tight, I'll let you know when everything clears."
-	plcrDepositSuccessMsg           = "Your tokens have been deposited successfully! (tx hash: %s)"
+	plcrDepositSuccessMsg           = "Your tokens have been deposited successfully!\n\nYou now have %d tokens locked up to vote and %d tokens in your wallet.\n\nTX hash: %s"
 	plcrWithdrawInsufficientFunds   = "Whoops, you only have %d tokens locked up."
-	plcrWithdrawSuccessMsg          = "Your tokens have been withdrawn successfully! TX hash: %s"
+	plcrWithdrawBeginMsg            = "I've submitted your request to withdraw. Hang tight, I'll let you know when everything clears."
+	plcrWithdrawSuccessMsg          = "Your tokens have been withdrawn successfully!\n\nYou now have %d tokens locked up to vote and %d tokens in your wallet.\n\nTX hash: %s"
 
 	depositAmount     = 500
 	defaultVoteWeight = 50
@@ -640,7 +641,25 @@ func handleVoteDeposit(account *models.Account, argv []string, sendDM func(strin
 		return err
 	}
 
-	sendDM(fmt.Sprintf(plcrDepositSuccessMsg, tx.Hash().Hex()))
+	// Wait for the deposit to complete
+	if _, err := contracts.AwaitTransactionConfirmation(tx.Hash()); err != nil {
+		return err
+	}
+
+	// Get their new balance
+	plcrBalance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanPLCRBalance := contracts.GetHumanTokenAmount(plcrBalance)
+
+	walletBalance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanWalletBalance := contracts.GetHumanTokenAmount(walletBalance)
+
+	sendDM(fmt.Sprintf(plcrDepositSuccessMsg, humanPLCRBalance, humanWalletBalance, tx.Hash().Hex()))
 	return nil
 }
 
@@ -669,12 +688,31 @@ func handleVoteWithdraw(account *models.Account, argv []string, sendDM func(stri
 		return nil
 	}
 
+	sendDM(plcrWithdrawBeginMsg)
 	tx, err := contracts.PLCRWithdraw(account.MultisigAddress.String, toWithdraw)
 	if err != nil {
 		sendDM(fmt.Sprintf(errorMsg, err.Error()))
 		return err
 	}
 
-	sendDM(fmt.Sprintf(plcrWithdrawSuccessMsg, tx.Hash().Hex()))
+	// Wait for the deposit to complete
+	if _, err := contracts.AwaitTransactionConfirmation(tx.Hash()); err != nil {
+		return err
+	}
+
+	// Get their new balance
+	plcrBalance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanPLCRBalance := contracts.GetHumanTokenAmount(plcrBalance)
+
+	walletBalance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanWalletBalance := contracts.GetHumanTokenAmount(walletBalance)
+
+	sendDM(fmt.Sprintf(plcrWithdrawSuccessMsg, humanPLCRBalance.Int64(), humanWalletBalance.Int64(), tx.Hash().Hex()))
 	return nil
 }

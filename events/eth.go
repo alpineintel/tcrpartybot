@@ -21,7 +21,8 @@ const (
 	challengeFailedTweet             = "The challenge against @%s's listing failed! Their spot in the party remains."
 	walletConfirmedMsg               = "Done! Your wallet is good to go and has %d TCRP waiting for you. Try responding with 'help' to see what you can ask me to do."
 
-	withdrawalMsg = "The challenge against your listing for %s failed! As a result you've won %d tokens. Your new balance is %d"
+	withdrawalMsg      = "The challenge against your listing for %s failed! As a result you've won %d tokens. Your new balance is %d"
+	challengeFailedMsg = "Yikes, looks like your challenge against @%s's listing failed. You've lost your %d staked TCRP. Your current balance is %d."
 
 	minDepositAmount   = 500
 	initialTokenAmount = 1550
@@ -230,6 +231,10 @@ func processChallengeFailed(ethEvent *ETHEvent) error {
 
 	log.Printf("Challenge against %s failed!", data)
 	tweet := fmt.Sprintf(challengeFailedTweet, data)
+	err = twitter.SendTweet(twitter.VIPBotHandle, tweet)
+	if err != nil {
+		return err
+	}
 
 	// Fetch how many tokens the listing owner receives
 	listing, err := contracts.GetListingFromHash(event.ListingHash)
@@ -247,7 +252,35 @@ func processChallengeFailed(ethEvent *ETHEvent) error {
 		}
 	}
 
-	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
+	// Aaand how many the loser lost
+	challenge, err := contracts.GetChallenge(event.ChallengeID)
+	if err != nil {
+		return err
+	}
+
+	ownerAccount, err := models.FindAccountByMultisigAddress(challenge.Challenger.Hex())
+	if err != nil {
+		return err
+	} else if ownerAccount == nil {
+		log.Printf("Challenger is unknown, skipping DM")
+		return nil
+	}
+
+	// Get twitter handle of the challenge's listing
+	twitterHandle, err := contracts.GetListingDataFromHash(listing.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	// Get the loser's new balance
+	balance, err := contracts.GetTokenBalance(ownerAccount.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+	msg := fmt.Sprintf(challengeFailedMsg, twitterHandle, minDepositAmount, humanBalance)
+	return twitter.SendDM(ownerAccount.TwitterID, msg)
 }
 
 func processApplicationRemoved(ethEvent *ETHEvent) error {

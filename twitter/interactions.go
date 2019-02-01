@@ -31,27 +31,29 @@ func awaitRatelimit() {
 	<-await
 }
 
+// GetIDFromHandle converts a twitter handle into an ID
+func GetIDFromHandle(handle string) (int64, error) {
+	client, _, err := GetClientFromHandle(VIPBotHandle)
+	if err != nil {
+		return 0, err
+	}
+
+	user, _, err := client.Users.Show(&twitter.UserShowParams{
+		ScreenName: handle,
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return user.ID, nil
+}
+
 // FilterTweets will begin filtering tweets and outputting them to the returned
 // channel
-func FilterTweets(twitterHandles []string) (*twitter.Stream, <-chan *twitter.Tweet, error) {
+func FilterTweets(twitterIDs []string) (*twitter.Stream, <-chan *twitter.Tweet, error) {
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	log.Println("Filtering tweets by:")
-	twitterIDs := make([]string, len(twitterHandles))
-	for _, handle := range twitterHandles {
-		user, _, err := client.Users.Show(&twitter.UserShowParams{
-			ScreenName: handle,
-		})
-
-		if err != nil {
-			return nil, nil, err
-		}
-
-		twitterIDs = append(twitterIDs, strconv.FormatInt(user.ID, 10))
-		log.Printf("\t%s (%d)", user.ScreenName, user.ID)
 	}
 
 	params := &twitter.StreamFilterParams{

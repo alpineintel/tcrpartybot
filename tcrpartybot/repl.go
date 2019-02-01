@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/events"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
 
@@ -25,6 +26,7 @@ const (
 	rm [handle]                            - Deletes all records of the account associated with this Twitter handle
 	distribute                             - Distributes tokens to all pre-registered accounts
 	withdraw [listing handle]              - Calls the withdraw method for the giving listing
+	sb [block number]                      - Sets the last block number to the provided number
 	deploy-wallet                          - Calls the MultisigWalletFactory contract [for debugging]`
 )
 
@@ -105,6 +107,15 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 				EventType:    events.TwitterEventTypeDM,
 				Time:         time.Now().UTC(),
 			}
+			break
+
+		case "sb":
+			if argc < 1 {
+				errChan <- errors.New("Invalid number of arguments for command sb")
+				continue
+			}
+
+			models.SetKey(models.LatestSyncedBlockKey, args[0])
 			break
 
 		case "mention":

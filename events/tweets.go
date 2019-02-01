@@ -49,8 +49,8 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 				continue
 			}
 
-			// Don't retweet replies
-			if tweet.InReplyToStatusIDStr != "" {
+			// Don't retweet replies or retweets
+			if tweet.InReplyToStatusIDStr != "" || tweet.RetweetedStatus != nil {
 				continue
 			}
 

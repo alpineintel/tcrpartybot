@@ -76,7 +76,10 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 
 		log.Println("TCR update detected, refreshing list for retweets...")
 		// Stop the existing stream and start up a new one
-		stream.Stop()
+		if stream != nil {
+			stream.Stop()
+		}
+
 		go refreshListings()
 	}
 }

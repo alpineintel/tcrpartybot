@@ -3,6 +3,7 @@ package contracts
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math/big"
 	"math/rand"
@@ -202,6 +203,36 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 		return nil, err
 	}
 
+	return tx, err
+}
+
+// Withdraw calls the withdraw method on the registry contract, taking unstaked
+// tokens out of the registry and returning it to a listing's owner.
+func Withdraw(twitterHandle string, amount *big.Int) (*types.Transaction, error) {
+	listingHash := getListingHash(twitterHandle)
+
+	listing, err := GetListingFromHash(listingHash)
+	if err != nil {
+		return nil, err
+	} else if listing == nil {
+		return nil, fmt.Errorf("no listing for %s", twitterHandle)
+	}
+
+	log.Printf("Withdrawing %d tokens from listing %s for %s", GetHumanTokenAmount(amount), twitterHandle, listing.Owner.Hash().Hex())
+	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	proxiedTX, err := newProxiedTransaction(
+		contractAddress,
+		RegistryABI,
+		"withdraw",
+		listingHash,
+		amount,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := submitTransaction(listing.Owner.Hash().Hex(), proxiedTX)
 	return tx, err
 }
 

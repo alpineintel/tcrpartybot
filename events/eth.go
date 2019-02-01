@@ -3,6 +3,7 @@ package events
 import (
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
@@ -20,6 +21,9 @@ const (
 	challengeFailedTweet             = "The challenge against @%s's listing failed! Their spot in the party remains."
 	walletConfirmedMsg               = "Done! Your wallet is good to go and has %d TCRP waiting for you. Try responding with 'help' to see what you can ask me to do."
 
+	withdrawalMsg = "The challenge against your listing for %s failed! As a result you've won %d tokens. Your new balance is %d"
+
+	minDepositAmount   = 500
 	initialTokenAmount = 1550
 	initialVoteAmount  = 50
 )
@@ -83,6 +87,41 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 	}
 
 	return nil
+}
+
+func processWithdrawal(event *ETHEvent) error {
+	withdrawal, err := contracts.DecodeWithdrawalEvent(event.Topics, event.Data)
+	if err != nil {
+		return err
+	}
+
+	account, err := models.FindAccountByMultisigAddress(withdrawal.Owner.Hex())
+	if err != nil {
+		return err
+	} else if account == nil {
+		log.Printf("Withdrawal from unkown owner %s", withdrawal.Owner.Hex())
+		return nil
+	}
+
+	humanReward := contracts.GetHumanTokenAmount(withdrawal.Withdrew)
+
+	// Get the listing's handle
+	listingHandle, err := contracts.GetListingDataFromHash(withdrawal.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	// Get their wallet balance
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+
+	// Send the owner a notification
+	msg := fmt.Sprintf(withdrawalMsg, listingHandle, humanReward, humanBalance)
+	err = twitter.SendDM(account.TwitterID, msg)
+	return err
 }
 
 func processNewApplication(event *ETHEvent) error {
@@ -191,6 +230,22 @@ func processChallengeFailed(ethEvent *ETHEvent) error {
 
 	log.Printf("Challenge against %s failed!", data)
 	tweet := fmt.Sprintf(challengeFailedTweet, data)
+
+	// Fetch how many tokens the listing owner receives
+	listing, err := contracts.GetListingFromHash(event.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	unstaked := listing.UnstakedDeposit
+	if unstaked.Cmp(big.NewInt(0)) == 1 {
+		log.Printf("Owner has unstaked tokens available, unlocking...")
+		// Unlock tokens and send them to the owner
+		reward := unstaked.Sub(unstaked, contracts.GetAtomicTokenAmount(minDepositAmount))
+		if _, err = contracts.Withdraw(data, reward); err != nil {
+			return err
+		}
+	}
 
 	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
 }

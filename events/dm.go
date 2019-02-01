@@ -115,8 +115,6 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		return c == ' '
 	})
 
-	log.Println(argv)
-
 	// If they haven't been activated yet (ie pre-registration) then we'll
 	// stop them here
 	if account.ActivatedAt == nil {

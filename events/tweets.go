@@ -2,6 +2,7 @@ package events
 
 import (
 	"log"
+	"strconv"
 
 	goTwitter "github.com/stevenleeg/go-twitter/twitter"
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
@@ -23,8 +24,9 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 		}
 
 		// Convert listings into twitter handles
-		var twitterHandles []string
-		handleMap := map[string]bool{}
+		var twitterIDs []string
+		idMap := map[int64]bool{}
+		log.Println("[Tweets] Filtering tweets by:")
 		for _, listing := range listings {
 			handle, err := contracts.GetListingDataFromHash(listing.ListingHash)
 			if err != nil {
@@ -32,11 +34,19 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 				continue
 			}
 
-			handleMap[handle] = true
-			twitterHandles = append(twitterHandles, handle)
+			log.Printf("\t%s", handle)
+			// Convert the handle to an ID
+			id, err := twitter.GetIDFromHandle(handle)
+			if err != nil {
+				errChan <- err
+				continue
+			}
+
+			idMap[id] = true
+			twitterIDs = append(twitterIDs, strconv.FormatInt(id, 10))
 		}
 
-		twitterStream, tweetChan, err := twitter.FilterTweets(twitterHandles)
+		twitterStream, tweetChan, err := twitter.FilterTweets(twitterIDs)
 		if err != nil {
 			errChan <- err
 			return
@@ -45,7 +55,7 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 		stream = twitterStream
 		for tweet := range tweetChan {
 			// Make sure we've received a tweet from a user we're tracking
-			if !handleMap[tweet.User.ScreenName] {
+			if !idMap[tweet.User.ID] {
 				continue
 			}
 
@@ -78,6 +88,7 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 		// Stop the existing stream and start up a new one
 		if stream != nil {
 			stream.Stop()
+			stream = nil
 		}
 
 		go refreshListings()

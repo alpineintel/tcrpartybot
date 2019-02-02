@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/events"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
 
@@ -23,6 +25,8 @@ const (
 	send-dm [to handle, w/o @] [message]   - Sends DM to a user from VIP bot
 	rm [handle]                            - Deletes all records of the account associated with this Twitter handle
 	distribute                             - Distributes tokens to all pre-registered accounts
+	withdraw [listing handle]              - Calls the withdraw method for the giving listing
+	sb [block number]                      - Sets the last block number to the provided number
 	deploy-wallet                          - Calls the MultisigWalletFactory contract [for debugging]`
 )
 
@@ -105,6 +109,15 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 			}
 			break
 
+		case "sb":
+			if argc < 1 {
+				errChan <- errors.New("Invalid number of arguments for command sb")
+				continue
+			}
+
+			models.SetKey(models.LatestSyncedBlockKey, args[0])
+			break
+
 		case "mention":
 			if argc < 2 {
 				errChan <- errors.New("Invalid number of arguments for command mention")
@@ -152,6 +165,27 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 				EventType:    events.TwitterEventTypeMention,
 				Time:         time.Now().UTC(),
 			}
+			break
+
+		case "withdraw":
+			if argc < 1 {
+				errChan <- errors.New("Invalid number of arguments for command withdraw")
+				continue
+			}
+
+			listing, err := contracts.GetListingFromHandle(args[0])
+			if err != nil {
+				errChan <- err
+				continue
+			} else if listing == nil {
+				log.Printf("No listing for %s", args[0])
+				continue
+			}
+
+			// Call the withdraw method from their multisig contract
+			subtract := contracts.GetAtomicTokenAmount(500)
+			amt := listing.UnstakedDeposit.Sub(listing.UnstakedDeposit, subtract)
+			contracts.Withdraw(args[0], amt)
 			break
 
 		case "distribute":

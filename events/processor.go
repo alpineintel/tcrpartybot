@@ -26,6 +26,7 @@ const (
 	ETHEventNewTCRChallenge           = "_Challenge"
 	ETHEventTCRChallengeSucceeded     = "_ChallengeSucceeded"
 	ETHEventTCRChallengeFailed        = "_ChallengeFailed"
+	ETHEventTCRWithdrawal             = "_Withdrawal"
 	ETHEventNewMultisigSubmission     = "Submission"
 )
 
@@ -91,6 +92,9 @@ func processETHEvent(event *ETHEvent, errChan chan<- error) {
 		break
 	case ETHEventNewTCRChallenge:
 		err = processNewChallenge(event)
+		break
+	case ETHEventTCRWithdrawal:
+		err = processWithdrawal(event)
 		break
 	}
 

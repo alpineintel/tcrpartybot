@@ -3,6 +3,7 @@ package events
 import (
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
@@ -20,6 +21,12 @@ const (
 	challengeFailedTweet             = "The challenge against @%s's listing failed! Their spot in the party remains."
 	walletConfirmedMsg               = "Done! Your wallet is good to go and has %d TCRP waiting for you. Try responding with 'help' to see what you can ask me to do."
 
+	withdrawalMsg       = "Nice! The challenge against your listing for @%s was voted down. As a result you've won %d TCRP. Your new balance is %d"
+	challengeFailedMsg  = "Yikes, looks like your challenge against @%s's listing failed. You've lost some of your staked TCRP. Your current balance is %d."
+	listingRemovedMsg   = "Yikes, looks like the challenge against your listing for @%s succeeded. As a result you've lost %d TCRP (the tokens you staked to nominate). Your current balance is %d TCRP."
+	challengeSuccessMsg = "Nice! Your challenge against @%s's listing succeeded. You've been rewarded with some tokens from the owner's stake as a result. Your balance is %d TCRP."
+
+	minDepositAmount   = 500
 	initialTokenAmount = 1550
 	initialVoteAmount  = 50
 )
@@ -83,6 +90,41 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 	}
 
 	return nil
+}
+
+func processWithdrawal(event *ETHEvent) error {
+	withdrawal, err := contracts.DecodeWithdrawalEvent(event.Topics, event.Data)
+	if err != nil {
+		return err
+	}
+
+	account, err := models.FindAccountByMultisigAddress(withdrawal.Owner.Hex())
+	if err != nil {
+		return err
+	} else if account == nil {
+		log.Printf("Withdrawal from unkown owner %s", withdrawal.Owner.Hex())
+		return nil
+	}
+
+	humanReward := contracts.GetHumanTokenAmount(withdrawal.Withdrew)
+
+	// Get the listing's handle
+	listingHandle, err := contracts.GetListingDataFromHash(withdrawal.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	// Get their wallet balance
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+
+	// Send the owner a notification
+	msg := fmt.Sprintf(withdrawalMsg, listingHandle, humanReward, humanBalance)
+	err = twitter.SendDM(account.TwitterID, msg)
+	return err
 }
 
 func processNewApplication(event *ETHEvent) error {
@@ -167,13 +209,59 @@ func processChallengeSucceeded(ethEvent *ETHEvent) error {
 		return err
 	}
 
-	data, err := contracts.GetListingDataFromHash(event.ListingHash)
+	twitterHandle, err := contracts.GetListingDataFromHash(event.ListingHash)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Challenge against %s succeeded!", data)
-	tweet := fmt.Sprintf(challengeSucceededTweet, data)
+	log.Printf("Challenge against %s succeeded!", twitterHandle)
+	tweet := fmt.Sprintf(challengeSucceededTweet, twitterHandle)
+
+	// Notify the listing owner that their listing is off
+	listingOwnerAddress, err := contracts.GetListingOwnerFromHash(event.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	listingOwner, err := models.FindAccountByMultisigAddress(listingOwnerAddress.Hex())
+	if err != nil {
+		return err
+	}
+
+	balance, err := contracts.GetTokenBalance(listingOwner.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+
+	msg := fmt.Sprintf(listingRemovedMsg, twitterHandle, minDepositAmount, humanBalance)
+	err = twitter.SendDM(listingOwner.TwitterID, msg)
+	if err != nil {
+		return err
+	}
+
+	// Notify the challenger that they won and they'll be getting tokens
+	challenge, err := contracts.GetChallenge(event.ChallengeID)
+	if err != nil {
+		return err
+	}
+
+	challengeOwner, err := models.FindAccountByMultisigAddress(challenge.Challenger.Hex())
+	if err != nil {
+		return err
+	}
+
+	balance, err = contracts.GetTokenBalance(challengeOwner.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanBalance = contracts.GetHumanTokenAmount(balance).Int64()
+
+	msg = fmt.Sprintf(challengeSuccessMsg, twitterHandle, humanBalance)
+	err = twitter.SendDM(challengeOwner.TwitterID, msg)
+	if err != nil {
+		return err
+	}
 
 	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
 }
@@ -191,8 +279,56 @@ func processChallengeFailed(ethEvent *ETHEvent) error {
 
 	log.Printf("Challenge against %s failed!", data)
 	tweet := fmt.Sprintf(challengeFailedTweet, data)
+	err = twitter.SendTweet(twitter.VIPBotHandle, tweet)
+	if err != nil {
+		return err
+	}
 
-	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
+	// Fetch how many tokens the listing owner receives
+	listing, err := contracts.GetListingFromHash(event.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	unstaked := listing.UnstakedDeposit
+	if unstaked.Cmp(big.NewInt(0)) == 1 {
+		log.Printf("Owner has unstaked tokens available, unlocking...")
+		// Unlock tokens and send them to the owner
+		reward := unstaked.Sub(unstaked, contracts.GetAtomicTokenAmount(minDepositAmount))
+		if _, err = contracts.Withdraw(data, reward); err != nil {
+			return err
+		}
+	}
+
+	// Aaand how many the loser lost
+	challenge, err := contracts.GetChallenge(event.ChallengeID)
+	if err != nil {
+		return err
+	}
+
+	ownerAccount, err := models.FindAccountByMultisigAddress(challenge.Challenger.Hex())
+	if err != nil {
+		return err
+	} else if ownerAccount == nil {
+		log.Printf("Challenger is unknown, skipping DM")
+		return nil
+	}
+
+	// Get twitter handle of the challenge's listing
+	twitterHandle, err := contracts.GetListingDataFromHash(listing.ListingHash)
+	if err != nil {
+		return err
+	}
+
+	// Get the loser's new balance
+	balance, err := contracts.GetTokenBalance(ownerAccount.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+	msg := fmt.Sprintf(challengeFailedMsg, twitterHandle, humanBalance)
+	return twitter.SendDM(ownerAccount.TwitterID, msg)
 }
 
 func processApplicationRemoved(ethEvent *ETHEvent) error {

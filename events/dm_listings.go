@@ -15,7 +15,7 @@ const (
 	challengeAlreadyExistsMsg     = "Looks like somebody has already begun a challenge for this twitter handle. You can support this challenge by voting kick (respond with 'vote %s kick')."
 	challengeInsufficientFundsMsg = "Drat, looks like you don't have enough TCRP to start a challenge. You'll need 500 available in your wallet."
 	challengeSubmissionErrorMsg   = "There was an error trying to submit your challenge. The admins have been notified!"
-	challengeSuccessMsg           = "We've submitted your challenge to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
+	challengeSubmissionSuccessMsg = "We've submitted your challenge to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
 
 	nominateArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'"
 	nominateAlreadyAppliedMsg    = "Looks like that Twitter handle has already been submitted to the TCR. A twitter handle can only appear on the TCR once, so you'll need to wait for a successful challenge (or a delisting) in order to re-nominate them."
@@ -119,7 +119,7 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 		sendDM(challengeSubmissionErrorMsg)
 		return err
 	}
-	msg := fmt.Sprintf(challengeSuccessMsg, tx.Hash().Hex())
+	msg := fmt.Sprintf(challengeSubmissionSuccessMsg, tx.Hash().Hex())
 	sendDM(msg)
 
 	return nil

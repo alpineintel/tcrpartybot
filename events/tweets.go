@@ -15,8 +15,10 @@ import (
 // addition/removal of a listing on the TCR
 func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 	var stream *goTwitter.Stream
+	refreshQueue := make(chan bool, 5)
 
 	refreshListings := func() {
+		refreshQueue <- true
 		listings, err := contracts.GetWhitelistedListings()
 		if err != nil {
 			errChan <- err
@@ -52,6 +54,15 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 			return
 		}
 
+		// At this point we should check to see if anyone else has begun, if so
+		// we'll stop and let them take over from here.
+		<-refreshQueue
+		if len(refreshQueue) > 0 {
+			stream.Stop()
+			return
+		}
+
+		// Otherwise we're cleared to go
 		stream = twitterStream
 		for tweet := range tweetChan {
 			// Make sure we've received a tweet from a user we're tracking
@@ -88,7 +99,6 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 		// Stop the existing stream and start up a new one
 		if stream != nil {
 			stream.Stop()
-			stream = nil
 		}
 
 		go refreshListings()

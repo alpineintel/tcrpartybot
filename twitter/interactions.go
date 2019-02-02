@@ -175,6 +175,10 @@ func Follow(userID int64) error {
 
 // IsFollower will return true if the given userID is a follower of the VIP bot
 func IsFollower(userID int64) (bool, error) {
+	if os.Getenv("SEND_TWITTER_INTERACTIONS") == "false" {
+		return true, nil
+	}
+
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {
 		return false, err

@@ -28,6 +28,27 @@ func DecodeApplicationEvent(topics []common.Hash, data []byte) (*RegistryApplica
 	return application, nil
 }
 
+// DecodeWithdrawalEvent decodes data from a topic list and an ABI-encoded byte
+// slice into a RegistryWithdrawal struct
+func DecodeWithdrawalEvent(topics []common.Hash, data []byte) (*RegistryWithdrawal, error) {
+	registryABI, err := abi.JSON(strings.NewReader(string(RegistryABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	withdrawal := &RegistryWithdrawal{}
+	err = registryABI.Unpack(withdrawal, "_Withdrawal", data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load in data from topics
+	copy(withdrawal.ListingHash[:], topics[1].Bytes()[0:32])
+	withdrawal.Owner = common.BytesToAddress(topics[2].Bytes())
+
+	return withdrawal, nil
+}
+
 // DecodeChallengeEvent decodes data from a topic list and an ABI-encoded byte
 // slice into a RegistryChallenge struct
 func DecodeChallengeEvent(topics []common.Hash, data []byte) (*RegistryChallenge, error) {

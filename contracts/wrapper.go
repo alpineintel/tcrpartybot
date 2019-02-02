@@ -444,6 +444,8 @@ func getApplicationEventFromHash(listingHash [32]byte) (*RegistryApplication, er
 func GetListingDataFromHash(listingHash [32]byte) (string, error) {
 	applicationEvent, err := getApplicationEventFromHash(listingHash)
 	if err != nil {
+		return "", err
+	} else if applicationEvent == nil {
 		return "", nil
 	}
 
@@ -456,6 +458,8 @@ func GetListingDataFromHash(listingHash [32]byte) (string, error) {
 func GetListingOwnerFromHash(listingHash [32]byte) (*common.Address, error) {
 	applicationEvent, err := getApplicationEventFromHash(listingHash)
 	if err != nil {
+		return nil, err
+	} else if applicationEvent == nil {
 		return nil, nil
 	}
 

@@ -14,7 +14,8 @@ const (
 	challengeNotFoundMsg          = "Looks like nobody has tried creating a listing for this twitter handle yet."
 	challengeAlreadyExistsMsg     = "Looks like somebody has already begun a challenge for this twitter handle. You can support this challenge by voting kick (respond with 'vote %s kick')."
 	challengeInsufficientFundsMsg = "Drat, looks like you don't have enough TCRP to start a challenge. You'll need 500 available in your wallet."
-	challengeSubmissionErrorMsg   = "There was an error trying to submit your challenge. The admins have been notified!"
+	challengeBeginMsg             = "Got it! I've just begun submitting your challenge to the registry and will send a message once everything is confirmed"
+	challengeSubmissionErrorMsg   = "There was an error trying to submit your challenge: %s. Try tweeting at @stevenleeg for help."
 	challengeSubmissionSuccessMsg = "We've submitted your challenge to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
 
 	nominateArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'"
@@ -113,10 +114,13 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 		}
 	}
 
+	// Send them a message letting them know the gears are in motion
+	sendDM(challengeBeginMsg)
+
 	tokens := contracts.GetAtomicTokenAmount(depositAmount)
 	tx, err := contracts.CreateChallenge(account.MultisigAddress.String, tokens, handle)
 	if err != nil {
-		sendDM(challengeSubmissionErrorMsg)
+		sendDM(fmt.Sprintf(challengeSubmissionErrorMsg, err.Error()))
 		return err
 	}
 	msg := fmt.Sprintf(challengeSubmissionSuccessMsg, tx.Hash().Hex())

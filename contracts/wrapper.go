@@ -395,18 +395,16 @@ func GetListingFromHash(listingHash [32]byte) (*RegistryListing, error) {
 	return &listing, nil
 }
 
-// GetListingDataFromHash Returns the data field (ideally a Twitter handle)
-// from a given listing hash.
-func GetListingDataFromHash(listingHash [32]byte) (string, error) {
+func getApplicationEventFromHash(listingHash [32]byte) (*RegistryApplication, error) {
 	client, err := GetClientSession()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	blockCursor := new(big.Int)
 	fromBlock, ok := blockCursor.SetString(os.Getenv("START_BLOCK"), 10)
 	if !ok {
-		return "", errors.New("Could not set fromBlock while getting active registry listings")
+		return nil, errors.New("Could not set fromBlock while getting active registry listings")
 	}
 
 	// Since listing data is only broadcast once (in the
@@ -425,20 +423,43 @@ func GetListingDataFromHash(listingHash [32]byte) (string, error) {
 
 	logs, err := client.FilterLogs(context.Background(), query)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
+	var latestEvent *RegistryApplication
 	for _, event := range logs {
 		event, err := DecodeApplicationEvent(event.Topics, event.Data)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		return event.Data, err
+		latestEvent = event
 	}
 
-	// Could not find listing with specified hash
-	return "", nil
+	return latestEvent, nil
+}
+
+// GetListingDataFromHash returns the data field (ideally a Twitter handle)
+// from a given listing hash.
+func GetListingDataFromHash(listingHash [32]byte) (string, error) {
+	applicationEvent, err := getApplicationEventFromHash(listingHash)
+	if err != nil {
+		return "", nil
+	}
+
+	return applicationEvent.Data, nil
+}
+
+// GetListingOwnerFromHash returns the applicant field from the most recent
+// Application event for the given listing hash. This is mostly useful for
+// retreiving information about a listing that has been removed from the list.
+func GetListingOwnerFromHash(listingHash [32]byte) (*common.Address, error) {
+	applicationEvent, err := getApplicationEventFromHash(listingHash)
+	if err != nil {
+		return nil, nil
+	}
+
+	return &applicationEvent.Applicant, nil
 }
 
 // GetPLCRContractAddress returns the address of the PLCR voting contract,

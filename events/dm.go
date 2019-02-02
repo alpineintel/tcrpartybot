@@ -2,6 +2,7 @@ package events
 
 import (
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -79,6 +80,11 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 
 	// Define a helper function that will be passed around below
 	sendDM := generateSendDM(account, errChan)
+
+	if msg := os.Getenv("MAINTENANCE_MESSAGE"); msg != "" {
+		sendDM(msg)
+		return
+	}
 
 	// Are they still in the registration challenge stage?
 	if account.PassedRegistrationChallengeAt == nil {

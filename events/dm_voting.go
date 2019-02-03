@@ -50,25 +50,14 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		return errors.New("User attempted to vote without a multisig address")
 	}
 
-	weight := contracts.GetAtomicTokenAmount(defaultVoteWeight)
-	handle := parseHandle(argv[1])
-
-	if len(argv) > 3 {
-		intWeight, err := strconv.ParseInt(argv[3], 10, 64)
-		if err != nil {
-			return err
-		}
-
-		weight = contracts.GetAtomicTokenAmount(intWeight)
-	}
-
-	humanWeight := contracts.GetHumanTokenAmount(weight).Int64()
-
 	// Fetch their PLCR deposit
 	balance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)
 	if err != nil {
 		return err
 	}
+
+	weight := balance
+	humanWeight := contracts.GetHumanTokenAmount(weight).Int64()
 
 	// If their PLCR deposit is 0 maybe we can help them out
 	if balance.Cmp(big.NewInt(0)) == 0 {
@@ -104,6 +93,16 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 		if err != nil {
 			return err
 		}
+	}
+
+	handle := parseHandle(argv[1])
+	if len(argv) > 3 {
+		intWeight, err := strconv.ParseInt(argv[3], 10, 64)
+		if err != nil {
+			return err
+		}
+
+		weight = contracts.GetAtomicTokenAmount(intWeight)
 	}
 
 	// Make sure their weight is within their means

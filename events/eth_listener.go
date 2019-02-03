@@ -108,6 +108,9 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 		} else if latestBlock == nil || latestBlock.Number == nil {
 			errChan <- fmt.Errorf("Could not fetch latest block number, skipping watch loop")
 			continue
+		} else if latestBlock.Number.Cmp(blockCursor) == -1 {
+			errChan <- fmt.Errorf("ethereum node reported block number lower than last seen. Eth reported: %s, I last saw: %s", latestBlock.Number.String(), blockCursor.String())
+			continue
 		}
 
 		// The filter is inclusive, therefore we should add 1 to the last seen block
@@ -121,6 +124,12 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 		}
 
 		for _, ethLog := range logs {
+			block := big.NewInt(int64(ethLog.BlockNumber))
+			if block.Cmp(blockCursor) == -1 {
+				fmt.Printf("Found old event skipping")
+				continue
+			}
+
 			// Look for a topic that we're interested in
 			for _, topicHash := range ethLog.Topics {
 				eventName := watchedTopics[topicHash]

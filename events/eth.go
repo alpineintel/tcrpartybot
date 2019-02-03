@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
@@ -34,12 +35,12 @@ const (
 func processMultisigWalletCreation(event *ETHEvent) error {
 	instantiation, err := contracts.DecodeContractInstantiationEvent(event.Data)
 	if err != nil {
-		return err
+		return errors.Wrap(err)
 	}
 
 	account, err := models.FindAccountByMultisigFactoryIdentifier(instantiation.Identifier.Int64())
 	if err != nil {
-		return err
+		return errors.Wrap(err)
 	} else if account == nil {
 		log.Printf("Could not find account with identifier %d", instantiation.Identifier.Int64())
 		return nil
@@ -221,6 +222,8 @@ func processChallengeSucceeded(ethEvent *ETHEvent) error {
 	listingOwnerAddress, err := contracts.GetListingOwnerFromHash(event.ListingHash)
 	if err != nil {
 		return err
+	} else if listingOwnerAddress == nil {
+		return fmt.Errorf("could not find listing owner from hash %b", event.ListingHash)
 	}
 
 	listingOwner, err := models.FindAccountByMultisigAddress(listingOwnerAddress.Hex())

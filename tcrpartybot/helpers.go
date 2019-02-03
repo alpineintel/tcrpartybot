@@ -1,23 +1,27 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 )
 
 func logErrors(errChan <-chan error) {
 	for err := range errChan {
-		log.Printf("\n%s", err)
+		if tcrpError, ok := err.(errors.TCRPError); ok {
+			log.Printf("[error] %s", tcrpError.ErrorWithStacktrace())
+		} else {
+			log.Printf("[error] %s", err.Error())
+		}
 	}
 }
 
 func deployWallet(errChan chan<- error) {
 	tx, identifier, err := contracts.DeployWallet()
 	if err != nil {
-		errChan <- err
+		errChan <- errors.Wrap(err)
 		return
 	}
 
@@ -29,7 +33,7 @@ func deleteAccount(twitterHandle string) error {
 	if err != nil {
 		return err
 	} else if account == nil {
-		return fmt.Errorf("Could not find account for handle %s", twitterHandle)
+		return errors.Errorf("Could not find account for handle %s", twitterHandle)
 	}
 
 	return account.Destroy()

@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 
 	"github.com/ethereum/go-ethereum"
@@ -31,12 +31,12 @@ type topicResource struct {
 func generateContracts() ([]*watchedContract, error) {
 	walletFactoryABI, err := abi.JSON(strings.NewReader(string(contracts.MultiSigWalletFactoryABI)))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err)
 	}
 
 	registryABI, err := abi.JSON(strings.NewReader(string(contracts.RegistryABI)))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err)
 	}
 
 	return []*watchedContract{
@@ -55,13 +55,13 @@ func generateContracts() ([]*watchedContract, error) {
 func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 	client, err := contracts.GetClientSession()
 	if err != nil {
-		errChan <- err
+		errChan <- errors.Wrap(err)
 		return
 	}
 
 	contracts, err := generateContracts()
 	if err != nil {
-		errChan <- err
+		errChan <- errors.Wrap(err)
 		return
 	}
 
@@ -88,7 +88,7 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 		// Get the previously synced block number
 		val, err := models.GetKey(models.LatestSyncedBlockKey)
 		if err != nil {
-			errChan <- err
+			errChan <- errors.Wrap(err)
 			continue
 		} else if val == "" {
 			val = os.Getenv("START_BLOCK")
@@ -97,19 +97,19 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 		blockCursor := new(big.Int)
 		blockCursor, ok := blockCursor.SetString(val, 10)
 		if !ok {
-			errChan <- errors.New("Could not parse previous block cursor")
+			errChan <- errors.Errorf("Could not parse previous block cursor")
 			continue
 		}
 
 		// Get the latest block number on the chain
 		latestBlock, err := client.HeaderByNumber(context.Background(), nil)
 		if err != nil {
-			errChan <- err
+			errChan <- errors.Wrap(err)
 		} else if latestBlock == nil || latestBlock.Number == nil {
-			errChan <- fmt.Errorf("Could not fetch latest block number, skipping watch loop")
+			errChan <- errors.Errorf("Could not fetch latest block number, skipping watch loop")
 			continue
 		} else if latestBlock.Number.Cmp(blockCursor) == -1 {
-			errChan <- fmt.Errorf("ethereum node reported block number lower than last seen. Eth reported: %s, I last saw: %s", latestBlock.Number.String(), blockCursor.String())
+			errChan <- errors.Errorf("ethereum node reported block number lower than last seen. Eth reported: %s, I last saw: %s", latestBlock.Number.String(), blockCursor.String())
 			continue
 		}
 
@@ -152,7 +152,7 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 
 		err = models.SetKey(models.LatestSyncedBlockKey, latestBlock.Number.String())
 		if err != nil {
-			errChan <- err
+			errChan <- errors.Wrap(err)
 		}
 	}
 }

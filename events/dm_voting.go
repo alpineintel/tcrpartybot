@@ -106,6 +106,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	}
 
 	// Make sure their weight is within their means
+	humanWeight = contracts.GetHumanTokenAmount(weight).Int64()
 	if balance.Cmp(weight) == -1 {
 		msg := fmt.Sprintf(voteInsufficientFundsMsg, humanWeight, contracts.GetHumanTokenAmount(balance).Int64())
 		sendDM(msg)

@@ -3,7 +3,6 @@ package events
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"

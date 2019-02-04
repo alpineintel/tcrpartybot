@@ -81,7 +81,7 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 	// Define a helper function that will be passed around below
 	sendDM := generateSendDM(account, errChan)
 
-	if msg := os.Getenv("MAINTENANCE_MESSAGE"); msg != "" {
+	if msg := os.Getenv("MAINTENANCE_MESSAGE"); msg != "" && account.TwitterHandle != "stevenleeg" {
 		sendDM(msg)
 		return
 	}

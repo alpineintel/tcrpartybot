@@ -32,6 +32,7 @@ const (
 	plcrWithdrawInsufficientFunds   = "Whoops, you only have %d tokens locked up."
 	plcrWithdrawBeginMsg            = "I've submitted your request to withdraw. Hang tight, I'll let you know when everything clears."
 	plcrWithdrawSuccessMsg          = "Your tokens have been withdrawn successfully!\n\nYou now have %d tokens locked up to vote and %d tokens in your wallet.\n\nTX hash: %s"
+	invalidNumberMsg                = "That doesn't look like a valid number to deposit... Get outta here."
 )
 
 func handleVote(account *models.Account, argv []string, sendDM func(string)) error {
@@ -218,7 +219,16 @@ func handleVoteDeposit(account *models.Account, argv []string, sendDM func(strin
 		sendDM(fmt.Sprintf(errorMsg, err.Error()))
 		return err
 	}
+
 	amount, err := strconv.ParseInt(argv[1], 10, 64)
+	if err != nil {
+		sendDM(invalidNumberMsg)
+		return nil
+	} else if amount <= 0 {
+		sendDM(invalidNumberMsg)
+		return nil
+	}
+
 	toDeposit := contracts.GetAtomicTokenAmount(amount)
 
 	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
@@ -273,6 +283,14 @@ func handleVoteWithdraw(account *models.Account, argv []string, sendDM func(stri
 		return err
 	}
 	amount, err := strconv.ParseInt(argv[1], 10, 64)
+	if err != nil {
+		sendDM(invalidNumberMsg)
+		return nil
+	} else if amount <= 0 {
+		sendDM(invalidNumberMsg)
+		return nil
+	}
+
 	toWithdraw := contracts.GetAtomicTokenAmount(amount)
 
 	balance, err := contracts.PLCRFetchBalance(account.MultisigAddress.String)

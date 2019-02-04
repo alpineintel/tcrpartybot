@@ -7,6 +7,7 @@ import (
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
+	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
 
 const (
@@ -24,6 +25,8 @@ const (
 	nominateSubmissionErrorMsg   = "There was an error trying to submit your nomination: %s. Try tweeting at @stevenleeg for help."
 	nominateSuccessMsg           = "All done! Your nomination was submitted in the following transaction: %s.\n\nKeep an eye on @TCRPartyVIP for an announcement."
 	nominateBeginMsg             = "Got it! I've just begun submitting your nomination to the registry and will send a message once everything is confirmed."
+	invalidHandleMsg             = "Hmm, it looks like @%s isn't a valid Twitter user"
+	getOuttaHereMsg              = "Get 'outta here"
 )
 
 func handleNomination(account *models.Account, argv []string, sendDM func(string)) error {
@@ -56,6 +59,19 @@ func handleNomination(account *models.Account, argv []string, sendDM func(string
 
 	if alreadyApplied {
 		sendDM(nominateAlreadyAppliedMsg)
+		return nil
+	}
+
+	// Is this handle real?
+	_, err = twitter.GetIDFromHandle(handle)
+	if err != nil {
+		sendDM(fmt.Sprintf(invalidHandleMsg, handle))
+		return nil
+	}
+
+	// Is this us?
+	if handle == "tcrpartybot" || handle == "tcrpartyvip" {
+		sendDM(getOuttaHereMsg)
 		return nil
 	}
 

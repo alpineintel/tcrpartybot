@@ -44,20 +44,43 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 	} else if account == nil {
 		log.Printf("Could not find account with identifier %d", instantiation.Identifier.Int64())
 		return nil
+	} else if account.MultisigAddress != nil && account.MultisigAddress.Valid {
+		log.Printf("User %s already has multisig wallet assigned, aborting.", account.TwitterHandle)
+		return nil
 	}
 
 	// Link their newly created multisig address to the account
 	multisigAddress := instantiation.Instantiation.Hex()
 	err = account.SetMultisigAddress(multisigAddress)
 	if err != nil {
-		return err
+		return errors.Wrap(err)
 	}
 
 	log.Printf("Wallet at %s linked to %s\n", multisigAddress, account.TwitterHandle)
 
-	// Mint them 50 tokens for voting
-	atomicAmount := contracts.GetAtomicTokenAmount(initialTokenAmount)
-	mintTx, err := contracts.MintTokens(multisigAddress, atomicAmount)
+	plcrBalance, err := contracts.PLCRFetchBalance(multisigAddress)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+
+	walletBalance, err := contracts.GetTokenBalance(multisigAddress)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+
+	atomicVotingAmount := contracts.GetAtomicTokenAmount(initialVoteAmount)
+	atomicBalanceAmount := contracts.GetAtomicTokenAmount(initialTokenAmount)
+
+	if plcrBalance.Cmp(atomicVotingAmount) != -1 {
+		log.Printf("User %s already has %d tokens assigned for voting, aborting.", account.TwitterHandle, plcrBalance)
+		return nil
+	} else if walletBalance.Cmp(atomicBalanceAmount) != -1 {
+		log.Printf("User %s already has %d tokens in multisig wallet, aborting.", account.TwitterHandle, walletBalance)
+		return nil
+	}
+
+	// Mint them initial tokens
+	mintTx, err := contracts.MintTokens(multisigAddress, atomicBalanceAmount)
 	if err != nil {
 		return err
 	}
@@ -68,8 +91,7 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 	}
 
 	// Lock some tokens up into the voting contract
-	atomicAmount = contracts.GetAtomicTokenAmount(initialVoteAmount)
-	plcrTX, err := contracts.PLCRDeposit(multisigAddress, atomicAmount)
+	plcrTX, err := contracts.PLCRDeposit(multisigAddress, atomicVotingAmount)
 	if err != nil {
 		return err
 	}
@@ -88,6 +110,11 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 		humanBalance := contracts.GetHumanTokenAmount(balance)
 		msg := fmt.Sprintf(walletConfirmedMsg, humanBalance)
 		twitter.SendDM(account.TwitterID, msg)
+	} else {
+		err := account.MarkActivated()
+		if err != nil {
+			return errors.Wrap(err)
+		}
 	}
 
 	return nil

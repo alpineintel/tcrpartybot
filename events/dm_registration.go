@@ -49,12 +49,6 @@ func verifyAnswer(data RegistrationEventData, errChan chan<- error) {
 		msg := registrationSuccessMsg
 		if os.Getenv("PREREGISTRATION") == "true" {
 			msg = preregistrationSuccessMsg
-		} else {
-			err := data.Account.MarkActivated()
-			if err != nil {
-				errChan <- err
-				return
-			}
 		}
 		err = twitter.SendDM(data.Account.TwitterID, msg)
 		if err != nil {

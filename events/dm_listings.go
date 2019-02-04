@@ -27,6 +27,7 @@ const (
 	nominateBeginMsg             = "Got it! I've just begun submitting your nomination to the registry and will send a message once everything is confirmed."
 	invalidHandleMsg             = "Hmm, it looks like @%s isn't a valid Twitter user"
 	getOuttaHereMsg              = "Get 'outta here"
+	tooManyListingsMsg           = "Ruh roh. Looks like the list has hit its limit of %d slots. In order to nominate a new member you'll need to challenge an existing member's slot."
 )
 
 func handleNomination(account *models.Account, argv []string, sendDM func(string)) error {
@@ -72,6 +73,13 @@ func handleNomination(account *models.Account, argv []string, sendDM func(string
 	// Is this us?
 	if handle == "tcrpartybot" || handle == "tcrpartyvip" {
 		sendDM(getOuttaHereMsg)
+		return nil
+	}
+
+	// Aaand finally, have we hit our limits?
+	listings, err := contracts.GetAllListings()
+	if len(listings) >= 99 {
+		sendDM(fmt.Sprintf(tooManyListingsMsg, len(listings)))
 		return nil
 	}
 

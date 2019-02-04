@@ -12,7 +12,7 @@ import (
 
 const (
 	noAccountMsg       = "Hmm, I haven't met you yet. If you want to join the TCR party send me a tweet that says \"let's party\""
-	inactiveAccountMsg = "The party hasn't started just yet. Keep an eye on @TCRPartyBot for a launch announcement."
+	inactiveAccountMsg = "We're still working on activating your account. Hang tight, we'll message you shortly!"
 
 	awaitingPartyBeginMsg       = "🎉 You're registered to party 🎉. Hang tight while we prepare to distribute our token."
 	invalidChallengeResponseMsg = "🙅‍♀️ That's not right! %s"

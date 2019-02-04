@@ -102,19 +102,19 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 	}
 
 	if os.Getenv("PREREGISTRATION") != "true" {
+		err = account.MarkActivated()
+		if err != nil {
+			return errors.Wrap(err)
+		}
+
 		balance, err := contracts.GetTokenBalance(multisigAddress)
 		if err != nil {
-			return err
+			return errors.Wrap(err)
 		}
 
 		humanBalance := contracts.GetHumanTokenAmount(balance)
 		msg := fmt.Sprintf(walletConfirmedMsg, humanBalance)
 		twitter.SendDM(account.TwitterID, msg)
-	} else {
-		err := account.MarkActivated()
-		if err != nil {
-			return errors.Wrap(err)
-		}
 	}
 
 	return nil

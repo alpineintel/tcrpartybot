@@ -20,7 +20,7 @@ const (
 	applicationRemovedTweet          = "@%s has been removed from the #TCRParty."
 	challengeSucceededTweet          = "The challenge against @%s's listing succeeded! They're out of the party."
 	challengeFailedTweet             = "The challenge against @%s's listing failed! Their spot in the party remains."
-	walletConfirmedMsg               = "Done! Your wallet is good to go and has %d TCRP waiting for you. Try responding with 'help' to see what you can ask me to do."
+	walletConfirmedMsg               = "Aaaand we're back, but this time on Rinkeby (see @stevenleeg's timeline for details). Your balance has been set to %d TCRP. Respond with 'help' to see what you can do with these tokens."
 
 	withdrawalMsg       = "Nice! The challenge against your listing for @%s was voted down. As a result you've won %d TCRP. Your new balance is %d"
 	challengeFailedMsg  = "Yikes, looks like your challenge against @%s's listing failed. You've lost some of your staked TCRP. Your current balance is %d."
@@ -28,7 +28,7 @@ const (
 	challengeSuccessMsg = "Nice! Your challenge against @%s's listing succeeded. You've been rewarded with some tokens from the owner's stake as a result. Your balance is %d TCRP."
 
 	minDepositAmount   = 500
-	initialTokenAmount = 1550
+	initialTokenAmount = 2050
 	initialVoteAmount  = 50
 )
 

@@ -19,6 +19,10 @@ import (
 )
 
 func getListingHash(twitterHandle string) [32]byte {
+	if twitterHandle == "obstropolos" {
+		twitterHandle = "Obstropolos"
+	}
+
 	listingHash := sha256.Sum256([]byte(twitterHandle))
 
 	// Convert that hash into the type it needs to be

@@ -16,12 +16,6 @@ const (
 )
 
 func processFollow(event *TwitterEvent, errChan chan<- error) {
-	// Follow them back
-	err := twitter.Follow(event.SourceID)
-	if err != nil {
-		errChan <- err
-	}
-
 	// If they are following us but already have an un-verified account it means
 	// that they've already sent us a "let's party" tweet. Since we can now DM
 	// them we can also kick off the verification process

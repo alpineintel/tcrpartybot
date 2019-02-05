@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	newApplicationWithHandleTweet    = "New #TCRParty listing! @%s has nominated @%s to be on the list for %s TCRP. Challenge this application by DMing 'challenge @%s'."
-	newApplicationWithoutHandleTweet = "New #TCRParty listing! @%s has been nominated to be on the list for %s TCRP. Challenge this application by DMing 'challenge @%s'."
-	newChallengeTweet                = "New #TCRParty challenge! @%s's listing has been put to the test. Send me a DM with 'vote %s keep/kick' to determine their fate."
-	applicationWhitelistedTweet      = "@%s has been successfully added to the #TCRParty!"
-	applicationRemovedTweet          = "@%s has been removed from the #TCRParty."
-	challengeSucceededTweet          = "The challenge against @%s's listing succeeded! They're out of the party."
-	challengeFailedTweet             = "The challenge against @%s's listing failed! Their spot in the party remains."
+	newApplicationWithHandleTweet    = "New #TCRParty listing! %s has nominated %s to be on the list for %s TCRP. Challenge this application by DMing 'challenge %s'."
+	newApplicationWithoutHandleTweet = "New #TCRParty listing! %s has been nominated to be on the list for %s TCRP. Challenge this application by DMing 'challenge %s'."
+	newChallengeTweet                = "New #TCRParty challenge! %s's listing has been put to the test. Send me a DM with 'vote %s keep/kick' to determine their fate."
+	applicationWhitelistedTweet      = "%s has been successfully added to the #TCRParty!"
+	applicationRemovedTweet          = "%s has been removed from the #TCRParty."
+	challengeSucceededTweet          = "The challenge against %s's listing succeeded! They're out of the party."
+	challengeFailedTweet             = "The challenge against %s's listing failed! Their spot in the party remains."
 	walletConfirmedMsg               = "Aaaand we're back, but this time on Rinkeby (see @stevenleeg's timeline for details). Your balance has been set to %d TCRP. Respond with 'help' to see what you can do with these tokens."
 
 	withdrawalMsg       = "Nice! The challenge against your listing for @%s was voted down. As a result you've won %d TCRP. Your new balance is %d"

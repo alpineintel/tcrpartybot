@@ -3,6 +3,7 @@ package events
 import (
 	"errors"
 	"fmt"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 	"log"
@@ -20,6 +21,11 @@ func processFollow(event *TwitterEvent, errChan chan<- error) {
 	// that they've already sent us a "let's party" tweet. Since we can now DM
 	// them we can also kick off the verification process
 	account, err := models.FindAccountByTwitterID(event.SourceID)
+	if err != nil {
+		errChan <- errors.Wrap(err)
+		return
+	}
+
 	if account != nil {
 		// Did the unfollow us before completing the last challenge?
 		activeChallenge, err := models.FindIncompleteChallenge(account.ID)

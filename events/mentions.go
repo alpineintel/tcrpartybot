@@ -2,17 +2,20 @@ package events
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"regexp"
+	"strings"
+
 	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
-	"log"
-	"os"
-	"strings"
 )
 
 const (
-	welcomeMsg        = "Welcome to the party! Before we put you on the VIP list, we need to make sure you're a human. Here's an easy question for you: %s"
-	notFollowingTweet = "@%s Hey! In order for us to get started I'll need you to follow me, otherwise we can't interact via DM."
+	welcomeMsg         = "Welcome to the party! Before we put you on the VIP list, we need to make sure you're a human. Here's an easy question for you: %s"
+	notFollowingTweet  = "@%s In order for us to get started I'll need you to follow me, otherwise we can't interact via DM."
+	notRegisteredTweet = "@%s You'll need to register in order to join the party. Tweet out \"hey @TCRPartyVIP let's party\" to get started"
 )
 
 func processFollow(event *TwitterEvent, errChan chan<- error) {
@@ -71,10 +74,51 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 
 	log.Printf("\nReceived mention from %s [%d]: %s", event.SourceHandle, event.SourceID, event.Message)
 
-	// Filter based on let's party
-	lower := strings.ToLower(event.Message)
-	if strings.Contains(lower, " party") {
-		processRegistration(event, errChan)
+	account, err := models.FindAccountByHandle(event.SourceHandle)
+	if err != nil {
+		errChan <- errors.Wrap(err)
+		return
+	} else if account == nil {
+		// No account. Do they want to regiser?
+		lower := strings.ToLower(event.Message)
+		if strings.Contains(lower, " party") {
+			processRegistration(event, errChan)
+			return
+		}
+
+		// No idea what they're doing, let's tweet at them
+		tweet := fmt.Sprintf(notRegisteredTweet, event.SourceHandle)
+		if err = twitter.SendTweet(twitter.VIPBotHandle, tweet); err != nil {
+			errChan <- errors.Wrap(err)
+		}
+		return
+	}
+
+	// Define a helper function that will be passed around below
+	sendDM := generateSendDM(account, errChan)
+
+	// Are they trying to challenge or nominate?
+	nominateMatcher := regexp.MustCompile("nominate @([a-zA-Z0-9]*)")
+	challengeMatcher := regexp.MustCompile("challenge @([a-zA-Z0-9]*)")
+
+	if nominateMatcher.MatchString(event.Message) {
+		matches := nominateMatcher.FindStringSubmatch(event.Message)
+		if len(matches) < 2 {
+			errChan <- errors.Errorf("could not parse mention nominee %s", matches)
+			return
+		}
+
+		args := []string{"nominate", matches[1]}
+		err = handleNomination(account, args, sendDM)
+	} else if challengeMatcher.MatchString(event.Message) {
+		matches := challengeMatcher.FindStringSubmatch(event.Message)
+		if len(matches) < 2 {
+			errChan <- errors.Errorf("could not parse mention challenge %s", matches)
+			return
+		}
+
+		args := []string{"challenge", matches[1]}
+		err = handleChallenge(account, args, sendDM)
 	}
 }
 

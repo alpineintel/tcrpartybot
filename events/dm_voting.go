@@ -191,7 +191,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 }
 
 func handleVoteBalance(account *models.Account, argv []string, sendDM func(string)) error {
-	if !account.MultisigAddress.Valid {
+	if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
 		err := errors.New("User attempted to fetch PLCR balance without a multisig address")
 		sendDM(fmt.Sprintf(errorMsg, err.Error()))
 		return err

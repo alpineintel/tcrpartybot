@@ -63,6 +63,12 @@ func handleNomination(account *models.Account, argv []string, sendDM func(string
 		return nil
 	}
 
+	// Is the handle valid?
+	if !verifyHandle(handle) {
+		sendDM(fmt.Sprintf(invalidHandleMsg, handle))
+		return nil
+	}
+
 	// Is this handle real?
 	_, err = twitter.GetIDFromHandle(handle)
 	if err != nil {

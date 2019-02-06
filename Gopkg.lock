@@ -68,7 +68,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:81cdea2cb729a674dc6e3f9e85ca1169b6a13157676b5ff6e15f1561371a729d"
+  digest = "1:9809c43d8c2c603aa87741ed8b6b3e3c09adcdef68a425c390b03c65622efaa3"
   name = "github.com/ethereum/go-ethereum"
   packages = [
     ".",
@@ -81,8 +81,17 @@
     "common/math",
     "common/mclock",
     "common/prque",
+    "consensus",
+    "consensus/misc",
+    "core",
+    "core/rawdb",
+    "core/state",
     "core/types",
+    "core/vm",
     "crypto",
+    "crypto/bn256",
+    "crypto/bn256/cloudflare",
+    "crypto/bn256/google",
     "crypto/secp256k1",
     "crypto/sha3",
     "ethclient",
@@ -123,6 +132,17 @@
   pruneopts = "UT"
   revision = "44c6ddd0a2342c386950e880b658017258da92fc"
   version = "v1.0.0"
+
+[[projects]]
+  digest = "1:8ec8d88c248041a6df5f6574b87bc00e7e0b493881dad2e7ef47b11dc69093b5"
+  name = "github.com/hashicorp/golang-lru"
+  packages = [
+    ".",
+    "simplelru",
+  ]
+  pruneopts = "UT"
+  revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
+  version = "v0.5.0"
 
 [[projects]]
   digest = "1:6c41d4f998a03b6604227ccad36edaed6126c397e5d78709ef4814a1145a6757"
@@ -216,12 +236,13 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:24c71d802766499662546f7157a78bf29e7409fd50d45f04950f7e68f4bed577"
+  digest = "1:a3a09ef957fab4c446ae6b48a3487a1e8f0974b13ce0d92d319667ef36c79bcf"
   name = "golang.org/x/crypto"
   packages = [
     "bcrypt",
     "blowfish",
     "pbkdf2",
+    "ripemd160",
     "scrypt",
     "sha3",
   ]
@@ -240,9 +261,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5004e851e5eccde563d17871cd9d11c82e2faa578b1a0de81dc74867ad3845a4"
+  digest = "1:6c854c3734cdaba6b8d4e6795e234213418a6e963260065adadee24665ca56a3"
   name = "golang.org/x/sys"
-  packages = ["unix"]
+  packages = [
+    "cpu",
+    "unix",
+  ]
   pruneopts = "UT"
   revision = "82a175fd1598e8a172e58ebdf5ed262bb29129e5"
 
@@ -265,6 +289,7 @@
     "github.com/ethereum/go-ethereum/accounts/abi",
     "github.com/ethereum/go-ethereum/accounts/abi/bind",
     "github.com/ethereum/go-ethereum/common",
+    "github.com/ethereum/go-ethereum/core",
     "github.com/ethereum/go-ethereum/core/types",
     "github.com/ethereum/go-ethereum/crypto",
     "github.com/ethereum/go-ethereum/ethclient",

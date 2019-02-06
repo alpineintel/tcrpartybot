@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
@@ -22,6 +24,7 @@ const (
 	invalidCommandMsg           = "Whoops, I don't recognize that command. Try typing help to see what you can say to me."
 	helpMsg                     = "Here are the commands I recognize:\n• balance - See your TCRP balance\n• nominate [handle] = Nominate the given Twitter handle to be on the TCR\n• challenge [handle] - Begin a challenge for a listing on the TCR\n• vote [handle] [kick/keep] - Vote on an existing listing's challenge.\n• faucet – Get 100 free tokens per day.\nThose are the basics, but you can check out https://www.tcr.party for more advanced commands."
 	errorMsg                    = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
+	activatingAccountMsg        = "Welcome back to the party! We unfortunately had to reset the TCR after killing Ropsten, but we're glad to see you back. Give me a minute while I rebuild your wallet 👷‍♀️..."
 
 	depositAmount     = 500
 	defaultVoteWeight = 50
@@ -51,12 +54,12 @@ func generateSendDM(account *models.Account, errChan chan<- error) func(message 
 			// Wait a second in order to prevent users from spamming
 			time.Sleep(1 * time.Second)
 			if err := twitter.SendDM(account.TwitterID, message); err != nil {
-				errChan <- err
+				errChan <- errors.Wrap(err)
 				return
 			}
 
 			if err := account.UpdateLastDMAt(); err != nil {
-				errChan <- err
+				errChan <- errors.Wrap(err)
 				return
 			}
 		}()
@@ -72,7 +75,7 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 	if account == nil || err != nil {
 		err := twitter.SendDM(event.SourceID, noAccountMsg)
 		if err != nil {
-			errChan <- err
+			errChan <- errors.Wrap(err)
 			return
 		}
 		return
@@ -109,9 +112,24 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		return
 	}
 
-	// They've registered but their account hasn't been activated yet (perhaps
-	// because we're still in the preregistration phase?
-	if account.ActivatedAt == nil {
+	// They've registered but their account hasn't been activated yet, let's
+	// activate it for them.
+	if account.ActivatedAt == nil && (account.MultisigFactoryIdentifier == nil || !account.MultisigFactoryIdentifier.Valid) {
+		_, identifier, err := contracts.DeployWallet()
+		if err != nil {
+			errChan <- errors.Wrap(err)
+			return
+		}
+
+		err = account.SetMultisigFactoryIdentifier(identifier)
+		if err != nil {
+			errChan <- errors.Wrap(err)
+			return
+		}
+
+		sendDM(activatingAccountMsg)
+		return
+	} else if account.ActivatedAt == nil {
 		sendDM(inactiveAccountMsg)
 		return
 	}

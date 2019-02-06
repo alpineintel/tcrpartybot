@@ -101,6 +101,7 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 	// Are they trying to challenge or nominate?
 	nominateMatcher := regexp.MustCompile("nominate @" + twitterHandleRegex)
 	challengeMatcher := regexp.MustCompile("challenge @" + twitterHandleRegex)
+	voteMatcher := regexp.MustCompile("vote @" + twitterHandleRegex + " (keep|kick) ?(\\d*)")
 
 	if nominateMatcher.MatchString(lower) {
 		matches := nominateMatcher.FindStringSubmatch(lower)
@@ -120,6 +121,17 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 
 		args := []string{"challenge", matches[1]}
 		err = handleChallenge(account, args, sendDM)
+	} else if voteMatcher.MatchString(lower) {
+		matches := voteMatcher.FindStringSubmatch(lower)
+		if len(matches) < 3 {
+			errChan <- errors.Errorf("could not parse vote challenge %s", matches)
+			return
+		} else if len(matches) == 3 {
+			matches = append(matches, "")
+		}
+
+		args := []string{"vote", matches[1], matches[2], matches[3]}
+		err = handleVote(account, args, sendDM)
 	}
 }
 

@@ -100,7 +100,7 @@ func handleVote(account *models.Account, argv []string, sendDM func(string)) err
 	if len(argv) > 3 {
 		intWeight, err := strconv.ParseInt(argv[3], 10, 64)
 		if err != nil {
-			return err
+			intWeight = 50
 		}
 
 		weight = contracts.GetAtomicTokenAmount(intWeight)

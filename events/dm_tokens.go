@@ -54,6 +54,11 @@ func handleFaucet(account *models.Account, argv []string, sendDM func(string)) e
 	}
 
 	atomicAmount := contracts.GetAtomicTokenAmount(faucetAmount)
+	err = models.RecordFaucetHit(account.ID, atomicAmount)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+
 	sendDM(fmt.Sprintf(hitFaucetBeginMsg, faucetAmount))
 	tx, err := contracts.MintTokens(account.MultisigAddress.String, atomicAmount)
 	if err != nil {
@@ -63,11 +68,6 @@ func handleFaucet(account *models.Account, argv []string, sendDM func(string)) e
 	log.Printf("Faucet hit: %d tokens to %s (%d). TX: %s", faucetAmount, account.TwitterHandle, account.ID, tx.Hash().Hex())
 
 	if _, err := contracts.AwaitTransactionConfirmation(tx.Hash()); err != nil {
-		return errors.Wrap(err)
-	}
-
-	err = models.RecordFaucetHit(account.ID, atomicAmount)
-	if err != nil {
 		return errors.Wrap(err)
 	}
 

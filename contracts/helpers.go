@@ -151,8 +151,7 @@ func ensureTransactionSubmission(submit txSubmitter) (*types.Transaction, error)
 		tx, err = submit()
 		if err != nil && err.Error() == core.ErrReplaceUnderpriced.Error() {
 			// Underpriced transaction, let's try again in a bit
-			log.Println("Underpriced transaction, retrying in 15s...")
-			time.Sleep(15 * time.Second)
+			time.Sleep(5 * time.Second)
 			continue
 		} else if err != nil {
 			// Some other error

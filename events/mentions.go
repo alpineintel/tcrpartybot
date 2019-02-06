@@ -74,13 +74,14 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 
 	log.Printf("\nReceived mention from %s [%d]: %s", event.SourceHandle, event.SourceID, event.Message)
 
+	lower := strings.ToLower(event.Message)
+
 	account, err := models.FindAccountByHandle(event.SourceHandle)
 	if err != nil {
 		errChan <- errors.Wrap(err)
 		return
 	} else if account == nil {
 		// No account. Do they want to regiser?
-		lower := strings.ToLower(event.Message)
 		if strings.Contains(lower, " party") {
 			processRegistration(event, errChan)
 			return
@@ -101,8 +102,8 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 	nominateMatcher := regexp.MustCompile("nominate @([a-zA-Z0-9]*)")
 	challengeMatcher := regexp.MustCompile("challenge @([a-zA-Z0-9]*)")
 
-	if nominateMatcher.MatchString(event.Message) {
-		matches := nominateMatcher.FindStringSubmatch(event.Message)
+	if nominateMatcher.MatchString(lower) {
+		matches := nominateMatcher.FindStringSubmatch(lower)
 		if len(matches) < 2 {
 			errChan <- errors.Errorf("could not parse mention nominee %s", matches)
 			return
@@ -110,8 +111,8 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 
 		args := []string{"nominate", matches[1]}
 		err = handleNomination(account, args, sendDM)
-	} else if challengeMatcher.MatchString(event.Message) {
-		matches := challengeMatcher.FindStringSubmatch(event.Message)
+	} else if challengeMatcher.MatchString(lower) {
+		matches := challengeMatcher.FindStringSubmatch(lower)
 		if len(matches) < 2 {
 			errChan <- errors.Errorf("could not parse mention challenge %s", matches)
 			return

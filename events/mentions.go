@@ -99,8 +99,8 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 	sendDM := generateSendDM(account, errChan)
 
 	// Are they trying to challenge or nominate?
-	nominateMatcher := regexp.MustCompile("nominate @([a-zA-Z0-9]*)")
-	challengeMatcher := regexp.MustCompile("challenge @([a-zA-Z0-9]*)")
+	nominateMatcher := regexp.MustCompile("nominate @" + twitterHandleRegex)
+	challengeMatcher := regexp.MustCompile("challenge @" + twitterHandleRegex)
 
 	if nominateMatcher.MatchString(lower) {
 		matches := nominateMatcher.FindStringSubmatch(lower)

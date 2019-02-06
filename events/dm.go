@@ -3,6 +3,7 @@ package events
 import (
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -29,6 +30,8 @@ const (
 	depositAmount     = 500
 	defaultVoteWeight = 50
 	faucetAmount      = 100
+
+	twitterHandleRegex = "([_a-zA-Z0-9]{1,15})"
 )
 
 // RegistrationEventData collects the required data for keeping track of
@@ -40,7 +43,12 @@ type RegistrationEventData struct {
 }
 
 func parseHandle(handle string) string {
-	return strings.ToLower(strings.Replace(handle, "@", "", -1))
+	return strings.ToLower(strings.TrimSpace(strings.Replace(handle, "@", "", -1)))
+}
+
+func verifyHandle(handle string) bool {
+	nominateMatcher := regexp.MustCompile(twitterHandleRegex)
+	return nominateMatcher.MatchString(handle)
 }
 
 func generateSendDM(account *models.Account, errChan chan<- error) func(message string) {

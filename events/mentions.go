@@ -15,7 +15,7 @@ import (
 const (
 	welcomeMsg         = "Welcome to the party! Before we put you on the VIP list, we need to make sure you're a human. Here's an easy question for you: %s"
 	notFollowingTweet  = "@%s In order for us to get started I'll need you to follow me, otherwise we can't interact via DM."
-	notRegisteredTweet = "@%s You'll need to register in order to join the party. Tweet out \"hey @TCRPartyVIP let's party\" to get started"
+	notRegisteredTweet = "@%s You'll need to register in order to join the party. Follow me and tweet out \"hey @TCRPartyVIP let's party\" to get started"
 )
 
 func processFollow(event *TwitterEvent, errChan chan<- error) {

@@ -40,7 +40,7 @@ type RegistrationEventData struct {
 }
 
 func parseHandle(handle string) string {
-	return strings.ToLower(strings.Replace(handle, "@", "", -1))
+	return strings.ToLower(strings.TrimSpace(strings.Replace(handle, "@", "", -1)))
 }
 
 func generateSendDM(account *models.Account, errChan chan<- error) func(message string) {

@@ -6,14 +6,17 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -59,6 +62,18 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 		return nil, err
 	}
 
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("Could not convert public key to ECDSA")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		return nil, err
+	}
+
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return nil, err
@@ -77,6 +92,7 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 	}
 
 	auth := bind.NewKeyedTransactor(privateKey)
+	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)
 	auth.GasLimit = uint64(gasLimit)
 	auth.GasPrice = gasPrice
@@ -90,24 +106,21 @@ func submitTransaction(multisigAddress string, tx *proxiedTransaction) (*types.T
 		return nil, err
 	}
 
-	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
-	if err != nil {
-		return nil, err
-	}
-
 	contractAddress := common.HexToAddress(multisigAddress)
 	wallet, err := NewMultiSigWallet(contractAddress, client)
 	if err != nil {
 		return nil, err
 	}
 
-	submitTX, err := wallet.SubmitTransaction(txOpts, tx.To, tx.Value, tx.Data)
+	// Try the transaction until it goes through
+	return ensureTransactionSubmission(func() (*types.Transaction, error) {
+		txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
+		if err != nil {
+			return nil, err
+		}
 
-	if err != nil {
-		return nil, err
-	}
-
-	return submitTX, err
+		return wallet.SubmitTransaction(txOpts, tx.To, tx.Value, tx.Data)
+	})
 }
 
 type proxiedTransaction struct {
@@ -124,6 +137,30 @@ func newProxiedTransaction(to common.Address, abiString string, method string, a
 		To:    to,
 		Value: big.NewInt(0),
 		Data:  data,
+	}
+
+	return tx, err
+}
+
+type txSubmitter func() (*types.Transaction, error)
+
+func ensureTransactionSubmission(submit txSubmitter) (*types.Transaction, error) {
+	var tx *types.Transaction
+	var err error
+	for {
+		tx, err = submit()
+		if err != nil && err.Error() == core.ErrReplaceUnderpriced.Error() {
+			// Underpriced transaction, let's try again in a bit
+			log.Println("Underpriced transaction, retrying in 15s...")
+			time.Sleep(15 * time.Second)
+			continue
+		} else if err != nil {
+			// Some other error
+			return nil, err
+		} else {
+			// Success!
+			break
+		}
 	}
 
 	return tx, err

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 )
 
@@ -191,7 +192,7 @@ func updateStatus(application *contracts.RegistryListing, errChan chan<- error) 
 
 	tx, err := contracts.UpdateStatus(application.ListingHash)
 	if err != nil {
-		errChan <- err
+		errChan <- errors.Wrap(err)
 		return
 	}
 	log.Printf("[updater] Done! Updating tx: %s", tx.Hash().Hex())

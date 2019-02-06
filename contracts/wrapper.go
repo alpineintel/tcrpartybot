@@ -124,11 +124,6 @@ func MintTokens(address string, amount *big.Int) (*types.Transaction, error) {
 		return nil, err
 	}
 
-	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
-	if err != nil {
-		return nil, err
-	}
-
 	contractAddress := common.HexToAddress(os.Getenv("TOKEN_ADDRESS"))
 	token, err := NewTCRPartyPoints(contractAddress, client)
 	if err != nil {
@@ -137,14 +132,15 @@ func MintTokens(address string, amount *big.Int) (*types.Transaction, error) {
 
 	txAddress := common.HexToAddress(address)
 
-	tx, err := token.Mint(txOpts, txAddress, amount)
-	if err != nil {
-		return nil, err
-	}
-
 	log.Printf("Minting %d tokens to %s", GetHumanTokenAmount(amount).Int64(), address)
+	return ensureTransactionSubmission(func() (*types.Transaction, error) {
+		txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
+		if err != nil {
+			return nil, err
+		}
 
-	return tx, nil
+		return token.Mint(txOpts, txAddress, amount)
+	})
 }
 
 // TCRPApprove permits a given address spend to N TCRP on a wallet's behalf
@@ -163,8 +159,7 @@ func TCRPApprove(multisigAddress string, spenderAddress string, amount *big.Int)
 		return nil, err
 	}
 
-	tx, err := submitTransaction(multisigAddress, proxiedTX)
-	return tx, err
+	return submitTransaction(multisigAddress, proxiedTX)
 }
 
 // Apply creates a new listing application on the TCR for the given twitter
@@ -277,11 +272,6 @@ func DeployWallet() (*types.Transaction, int64, error) {
 		return nil, 0, err
 	}
 
-	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), gasLimit)
-	if err != nil {
-		return nil, 0, err
-	}
-
 	contractAddress := common.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS"))
 	factory, err := NewMultiSigWalletFactory(contractAddress, client)
 	if err != nil {
@@ -295,7 +285,15 @@ func DeployWallet() (*types.Transaction, int64, error) {
 
 	identifier := rand.Int63()
 	owners := []common.Address{botKey}
-	tx, err := factory.Create(txOpts, owners, big.NewInt(1), big.NewInt(identifier))
+
+	tx, err := ensureTransactionSubmission(func() (*types.Transaction, error) {
+		txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), gasLimit)
+		if err != nil {
+			return nil, err
+		}
+
+		return factory.Create(txOpts, owners, big.NewInt(1), big.NewInt(identifier))
+	})
 
 	return tx, identifier, err
 }
@@ -573,8 +571,15 @@ func UpdateStatus(listingHash [32]byte) (*types.Transaction, error) {
 		return nil, err
 	}
 
-	txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), gasLimit)
-	tx, err := registry.UpdateStatus(txOpts, listingHash)
+	tx, err := ensureTransactionSubmission(func() (*types.Transaction, error) {
+		txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), gasLimit)
+		if err != nil {
+			return nil, err
+		}
+
+		return registry.UpdateStatus(txOpts, listingHash)
+	})
+
 	return tx, err
 }
 

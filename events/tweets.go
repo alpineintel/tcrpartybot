@@ -57,8 +57,10 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 		// At this point we should check to see if anyone else has begun, if so
 		// we'll stop and let them take over from here.
 		<-refreshQueue
-		if len(refreshQueue) > 0 {
+		if len(refreshQueue) > 0 && stream != nil {
 			stream.Stop()
+			return
+		} else if len(refreshQueue) > 0 {
 			return
 		}
 

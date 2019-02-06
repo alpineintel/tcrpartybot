@@ -208,7 +208,6 @@ func (a *Account) UpdateLastDMAt() error {
 // SetMultisigFactoryIdentifier updates the user's account with the given
 // multisig factory identifier
 func (a *Account) SetMultisigFactoryIdentifier(identifier int64) error {
-	fmt.Println(a.MultisigFactoryIdentifier)
 	if a.MultisigFactoryIdentifier != nil && a.MultisigFactoryIdentifier.Valid {
 		return errors.New("identifier can only be set once")
 	}

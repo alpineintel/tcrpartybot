@@ -487,7 +487,7 @@ func (server *Server) activate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get their wallet address
-	if !account.MultisigAddress.Valid {
+	if account.MultisigAddress == nil || (account.MultisigAddress != nil && !account.MultisigAddress.Valid) {
 		w.WriteHeader(400)
 		w.Write([]byte("User does not have multisig wallet"))
 		return

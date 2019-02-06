@@ -17,13 +17,13 @@ const (
 	challengeInsufficientFundsMsg = "Drat, looks like you don't have enough TCRP to start a challenge. You'll need 500 available in your wallet."
 	challengeBeginMsg             = "Got it! I've just begun submitting your challenge to the registry and will send a message once everything is confirmed"
 	challengeSubmissionErrorMsg   = "There was an error trying to submit your challenge: %s. Try tweeting at @stevenleeg for help."
-	challengeSubmissionSuccessMsg = "We've submitted your challenge to the registry (tx: %s). Keep an eye on @TCRPartyVIP for updates."
+	challengeSubmissionSuccessMsg = "Done! Your challenge has been submitted to the registry and your new balance is %d TCRP. Keep an eye on @TCRPartyVIP for updates.\n\nTX Hash: %s"
 
 	nominateArgErrorMsg          = "Whoops, looks like you forgot something. Try again with something like 'nominate [twitter handle]'. Eg: 'apply weratedogs'"
 	nominateAlreadyAppliedMsg    = "Looks like that Twitter handle has already been submitted to the TCR. A twitter handle can only appear on the TCR once, so you'll need to wait for a successful challenge (or a delisting) in order to re-nominate them."
 	nominateInsufficientFundsMsg = "Drat! Looks like you don't have enough TCRP to start a nomination. You'll need 500 available in your wallet."
 	nominateSubmissionErrorMsg   = "There was an error trying to submit your nomination: %s. Try tweeting at @stevenleeg for help."
-	nominateSuccessMsg           = "All done! Your nomination was submitted in the following transaction: %s.\n\nKeep an eye on @TCRPartyVIP for an announcement."
+	nominateSuccessMsg           = "All done! Your nomination was submitted successfully and your new balance is %d TCRP.\n\nKeep an eye on @TCRPartyVIP for an announcement.\n\nTX Hash: %s"
 	nominateBeginMsg             = "Got it! I've just begun submitting your nomination to the registry and will send a message once everything is confirmed."
 	invalidHandleMsg             = "Hmm, it looks like @%s isn't a valid Twitter user"
 	getOuttaHereMsg              = "Get 'outta here"
@@ -93,7 +93,13 @@ func handleNomination(account *models.Account, argv []string, sendDM func(string
 		sendDM(fmt.Sprintf(nominateSubmissionErrorMsg, err.Error()))
 		return err
 	}
-	msg := fmt.Sprintf(nominateSuccessMsg, tx.Hash().Hex())
+
+	balance, err = contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+	msg := fmt.Sprintf(nominateSuccessMsg, humanBalance, tx.Hash().Hex())
 	sendDM(msg)
 
 	return nil
@@ -147,7 +153,14 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 		sendDM(fmt.Sprintf(challengeSubmissionErrorMsg, err.Error()))
 		return err
 	}
-	msg := fmt.Sprintf(challengeSubmissionSuccessMsg, tx.Hash().Hex())
+
+	balance, err = contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+
+	msg := fmt.Sprintf(challengeSubmissionSuccessMsg, humanBalance, tx.Hash().Hex())
 	sendDM(msg)
 
 	return nil

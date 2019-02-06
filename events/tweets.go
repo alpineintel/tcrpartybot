@@ -58,7 +58,7 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 		// we'll stop and let them take over from here.
 		<-refreshQueue
 		if len(refreshQueue) > 0 && stream != nil {
-			stream.Stop()
+			twitterStream.Stop()
 			return
 		} else if len(refreshQueue) > 0 {
 			return
@@ -101,6 +101,7 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 		// Stop the existing stream and start up a new one
 		if stream != nil {
 			stream.Stop()
+			stream = nil
 		}
 
 		go refreshListings()

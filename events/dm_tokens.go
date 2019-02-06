@@ -7,13 +7,15 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 )
 
 const (
-	cannotHitFaucetMsg = "Ack, I can only let you hit the faucet once per day. Try again %s."
-	hitFaucetMsg       = "You got it. %d TCRP headed your way. TX Hash: %s"
-	balanceMsg         = "Your balance is %d TCRP"
+	cannotHitFaucetMsg  = "Ack, I can only let you hit the faucet once per day. Try again %s."
+	hitFaucetBeginMsg   = "You got it. %d TCRP headed your way, I'll let you know once the transaction is confirmed."
+	hitFaucetSuccessMsg = "Done! Your new balance is %d TCRP.\n\nTX Hash: %s"
+	balanceMsg          = "Your balance is %d TCRP"
 )
 
 func handleBalance(account *models.Account, argv []string, sendDM func(string)) error {
@@ -52,17 +54,30 @@ func handleFaucet(account *models.Account, argv []string, sendDM func(string)) e
 	}
 
 	atomicAmount := contracts.GetAtomicTokenAmount(faucetAmount)
+	sendDM(fmt.Sprintf(hitFaucetBeginMsg, faucetAmount))
 	tx, err := contracts.MintTokens(account.MultisigAddress.String, atomicAmount)
 	if err != nil {
-		return err
+		return errors.Wrap(err)
+	}
+
+	log.Printf("Faucet hit: %d tokens to %s (%d). TX: %s", faucetAmount, account.TwitterHandle, account.ID, tx.Hash().Hex())
+
+	if _, err := contracts.AwaitTransactionConfirmation(tx.Hash()); err != nil {
+		return errors.Wrap(err)
 	}
 
 	err = models.RecordFaucetHit(account.ID, atomicAmount)
 	if err != nil {
-		return err
+		return errors.Wrap(err)
 	}
 
-	log.Printf("Faucet hit: %d tokens to %s (%d). TX: %s", faucetAmount, account.TwitterHandle, account.ID, tx.Hash().Hex())
-	sendDM(fmt.Sprintf(hitFaucetMsg, faucetAmount, tx.Hash().Hex()))
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+
+	sendDM(fmt.Sprintf(hitFaucetSuccessMsg, humanBalance, tx.Hash().Hex()))
+
 	return nil
 }

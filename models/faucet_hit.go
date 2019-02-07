@@ -38,7 +38,7 @@ func LatestFaucetHit(accountID int64) (*FaucetHit, error) {
 			faucet_hits
 		WHERE
 			account_id=$1
-		ORDER BY created_at
+		ORDER BY created_at DESC
 		LIMIT 1
 	`, accountID)
 

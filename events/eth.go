@@ -20,12 +20,14 @@ const (
 	applicationRemovedTweet          = "%s has been removed from the #TCRParty."
 	challengeSucceededTweet          = "The challenge against %s's listing succeeded! They're out of the party."
 	challengeFailedTweet             = "The challenge against %s's listing failed! Their spot in the party remains."
-	walletConfirmedMsg               = "Aaaand we're back, but this time on Rinkeby (see @stevenleeg's timeline for details). Your balance has been set to %d TCRP. Respond with 'help' to see what you can do with these tokens."
+	walletConfirmedMsg               = "Your wallet has been built successfully and I've given you %d TCRP to get you started. Respond with 'help' to see what you can do with your shiny new tokens."
 
 	withdrawalMsg       = "Nice! The challenge against your listing for @%s was voted down. As a result you've won %d TCRP. Your new balance is %d"
 	challengeFailedMsg  = "Yikes, looks like your challenge against @%s's listing failed. You've lost some of your staked TCRP. Your current balance is %d."
 	listingRemovedMsg   = "Yikes, looks like the challenge against your listing for @%s succeeded. As a result you've lost %d TCRP (the tokens you staked to nominate). Your current balance is %d TCRP."
 	challengeSuccessMsg = "Nice! Your challenge against @%s's listing succeeded. You've been rewarded with some tokens from the owner's stake as a result. Your balance is %d TCRP."
+
+	rewardClaimedMsg = "Woohoo! You voted on the winning side of the challenge against @%s's listing. As a result, you've been rewarded %d TCRP. Your new balance is %d TCRP."
 
 	minDepositAmount   = 500
 	initialTokenAmount = 2050
@@ -115,6 +117,66 @@ func processMultisigWalletCreation(event *ETHEvent) error {
 		humanBalance := contracts.GetHumanTokenAmount(balance)
 		msg := fmt.Sprintf(walletConfirmedMsg, humanBalance)
 		twitter.SendDM(account.TwitterID, msg)
+	}
+
+	return nil
+}
+
+func processRewardClaimed(event *ETHEvent) error {
+	claim, err := contracts.DecodeRewardClaimedEvent(event.Topics, event.Data)
+	if err != nil {
+		return err
+	}
+
+	// Get voter's account
+	account, err := models.FindAccountByMultisigAddress(claim.Voter.Hex())
+	if err != nil {
+		return err
+	} else if account == nil {
+		log.Printf("Reward claimed from unkown voter %s", claim.Voter.Hex())
+		return nil
+	}
+
+	// Find their vote
+	vote, err := models.FindVote(claim.ChallengeID.Int64(), account.ID)
+	if err != nil {
+		return err
+	} else if vote == nil {
+		return fmt.Errorf("could not find vote for challenge %s account %s", claim.ChallengeID.String(), account.TwitterHandle)
+	}
+
+	if vote.RewardClaimedAt != nil {
+		return fmt.Errorf("already claimed vote for challenge %s account %s", claim.ChallengeID.String(), account.TwitterHandle)
+	}
+
+	listingHash, err := contracts.GetListingHashFromChallenge(claim.ChallengeID)
+	if err != nil && err == contracts.ErrCannotFindListingHash {
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	twitterHandle, err := contracts.GetListingDataFromHash(listingHash)
+	if err != nil {
+		return err
+	}
+
+	// Get their PLCR balance
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+	humanReward := contracts.GetHumanTokenAmount(claim.Reward).Int64()
+
+	msg := fmt.Sprintf(rewardClaimedMsg, twitterHandle, humanReward, humanBalance)
+	if err := twitter.SendDM(account.TwitterID, msg); err != nil {
+		return err
+	}
+
+	if err := vote.MarkRewardClaimed(); err != nil {
+		return err
 	}
 
 	return nil
@@ -231,6 +293,35 @@ func processApplicationWhitelisted(ethEvent *ETHEvent) error {
 	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
 }
 
+func rewardVoters(pollID *big.Int, voteDirection bool) error {
+	votes, err := models.FindUnrewardedVotesFromPoll(pollID.Int64(), voteDirection)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Rewarding voters:")
+	for _, vote := range votes {
+		account, err := models.FindAccountByID(vote.AccountID)
+		if err != nil {
+			return err
+		}
+
+		if !account.MultisigAddress.Valid {
+			log.Printf("\tSkipping %s", account.TwitterHandle)
+			continue
+		}
+
+		tx, err := contracts.ClaimVoterReward(account.MultisigAddress.String, pollID)
+		if err != nil {
+			return err
+		}
+
+		log.Printf("\t%s (tx: %s)", account.TwitterHandle, tx.Hash().Hex())
+	}
+
+	return nil
+}
+
 func processChallengeSucceeded(ethEvent *ETHEvent) error {
 	event, err := contracts.DecodeChallengeSucceededEvent(ethEvent.Topics, ethEvent.Data)
 	if err != nil {
@@ -243,7 +334,11 @@ func processChallengeSucceeded(ethEvent *ETHEvent) error {
 	}
 
 	log.Printf("Challenge against %s succeeded!", twitterHandle)
+	// Send out a tweet letting everyone know
 	tweet := fmt.Sprintf(challengeSucceededTweet, twitterHandle)
+	if err := twitter.SendTweet(twitter.VIPBotHandle, tweet); err != nil {
+		return err
+	}
 
 	// Notify the listing owner that their listing is off
 	listingOwnerAddress, err := contracts.GetListingOwnerFromHash(event.ListingHash)
@@ -293,7 +388,12 @@ func processChallengeSucceeded(ethEvent *ETHEvent) error {
 		return err
 	}
 
-	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
+	// Claim rewards on behalf of voters
+	if err := rewardVoters(event.ChallengeID, false); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func processChallengeFailed(ethEvent *ETHEvent) error {
@@ -309,8 +409,7 @@ func processChallengeFailed(ethEvent *ETHEvent) error {
 
 	log.Printf("Challenge against %s failed!", data)
 	tweet := fmt.Sprintf(challengeFailedTweet, data)
-	err = twitter.SendTweet(twitter.VIPBotHandle, tweet)
-	if err != nil {
+	if err = twitter.SendTweet(twitter.VIPBotHandle, tweet); err != nil {
 		return err
 	}
 
@@ -358,7 +457,16 @@ func processChallengeFailed(ethEvent *ETHEvent) error {
 
 	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
 	msg := fmt.Sprintf(challengeFailedMsg, twitterHandle, humanBalance)
-	return twitter.SendDM(ownerAccount.TwitterID, msg)
+	if err := twitter.SendDM(ownerAccount.TwitterID, msg); err != nil {
+		return err
+	}
+
+	// Claim rewards on behalf of voters
+	if err := rewardVoters(event.ChallengeID, false); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func processApplicationRemoved(ethEvent *ETHEvent) error {

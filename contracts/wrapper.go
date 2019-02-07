@@ -20,8 +20,13 @@ import (
 
 const (
 	applicationTopicHash = "0xa27f550c3c7a7c6d8369e5383fdc7a3b4850d8ce9e20066f9d496f6989f00864"
+	challengeTopicHash   = "0xf98a08756a3603420a080d66764f73deb1e30896c315cfed03e17f88f5eb30f7"
 	gasLimit             = 5000000
 )
+
+// ErrCannotFindListingHash is returned when an event being searched for via its
+// listing hash cannot be found
+var ErrCannotFindListingHash = errors.New("cannot find listing hash")
 
 var session *ethclient.Client
 
@@ -228,6 +233,25 @@ func Withdraw(twitterHandle string, amount *big.Int) (*types.Transaction, error)
 	}
 
 	tx, err := submitTransaction(listing.Owner.Hash().Hex(), proxiedTX)
+	return tx, err
+}
+
+// ClaimVoterReward calls the claimVoterReward method on the registry contract
+// on behalf of a given multisig wallet.
+func ClaimVoterReward(multisigAddress string, pollID *big.Int) (*types.Transaction, error) {
+	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
+	proxiedTX, err := newProxiedTransaction(
+		contractAddress,
+		RegistryABI,
+		"claimReward",
+		pollID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := submitTransaction(multisigAddress, proxiedTX)
 	return tx, err
 }
 
@@ -462,6 +486,58 @@ func GetListingOwnerFromHash(listingHash [32]byte) (*common.Address, error) {
 	}
 
 	return &applicationEvent.Applicant, nil
+}
+
+// GetListingHashFromChallenge returns the listing hash being challenged given a
+// challenge's ID. This is useful for RewardClaimed events, where the challenge
+// ID is provided by the listing hash is not.
+func GetListingHashFromChallenge(challengeID *big.Int) ([32]byte, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	blockCursor := new(big.Int)
+	fromBlock, ok := blockCursor.SetString(os.Getenv("START_BLOCK"), 10)
+	if !ok {
+		return [32]byte{}, errors.New("Could not set fromBlock while getting active registry listings")
+	}
+
+	// Since listing data is only broadcast once (in the
+	// initial application event), we need to filter out the specific event we're
+	// looking for in order to fetch the associated data field.
+	query := ethereum.FilterQuery{
+		Addresses: []common.Address{
+			common.HexToAddress(os.Getenv("TCR_ADDRESS")),
+		},
+		FromBlock: fromBlock,
+		Topics: [][]common.Hash{
+			{common.HexToHash(challengeTopicHash)},
+		},
+	}
+
+	logs, err := client.FilterLogs(context.Background(), query)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	var latestEvent *RegistryChallenge
+	for _, event := range logs {
+		event, err := DecodeChallengeEvent(event.Topics, event.Data)
+		if err != nil {
+			return [32]byte{}, err
+		}
+
+		if event.ChallengeID.Cmp(challengeID) == 0 {
+			latestEvent = event
+		}
+	}
+
+	if latestEvent == nil {
+		return [32]byte{}, ErrCannotFindListingHash
+	}
+
+	return latestEvent.ListingHash, nil
 }
 
 // GetPLCRContractAddress returns the address of the PLCR voting contract,

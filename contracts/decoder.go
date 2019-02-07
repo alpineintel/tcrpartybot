@@ -49,6 +49,27 @@ func DecodeWithdrawalEvent(topics []common.Hash, data []byte) (*RegistryWithdraw
 	return withdrawal, nil
 }
 
+// DecodeRewardClaimedEvent decodes data from a topic list and an ABI-encoded byte
+// slice into a RegistryRewardClaimed struct
+func DecodeRewardClaimedEvent(topics []common.Hash, data []byte) (*RegistryRewardClaimed, error) {
+	registryABI, err := abi.JSON(strings.NewReader(string(RegistryABI)))
+	if err != nil {
+		return nil, err
+	}
+
+	claim := &RegistryRewardClaimed{}
+	err = registryABI.Unpack(claim, "_RewardClaimed", data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load in data from topics
+	claim.ChallengeID = topics[1].Big()
+	claim.Voter = common.BytesToAddress(topics[2].Bytes())
+
+	return claim, nil
+}
+
 // DecodeChallengeEvent decodes data from a topic list and an ABI-encoded byte
 // slice into a RegistryChallenge struct
 func DecodeChallengeEvent(topics []common.Hash, data []byte) (*RegistryChallenge, error) {

@@ -27,7 +27,7 @@ const (
 	listingRemovedMsg   = "Yikes, looks like the challenge against your listing for @%s succeeded. As a result you've lost %d TCRP (the tokens you staked to nominate). Your current balance is %d TCRP."
 	challengeSuccessMsg = "Nice! Your challenge against @%s's listing succeeded. You've been rewarded with some tokens from the owner's stake as a result. Your balance is %d TCRP."
 
-	rewardClaimedMsg = "Woohoo! You voted on the winning side of the challenge against @%s's listing. As a result, your vote weight has been increased by %d to %d TCRP.\n\nJust as a reminder, if you ever want to transfer your vote weight to tokens you can nominate/challenge with, send 'vote-withdraw [amount]."
+	rewardClaimedMsg = "Woohoo! You voted on the winning side of the challenge against @%s's listing. As a result, you've been rewarded %d TCRP. Your new balance is %d TCRP."
 
 	minDepositAmount   = 500
 	initialTokenAmount = 2050

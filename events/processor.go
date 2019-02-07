@@ -19,6 +19,7 @@ const (
 
 	// ETHEventNewMultisigWallet is triggered when the multisig wallet factory instantiates a new wallet
 	ETHEventNewMultisigWallet         = "ContractInstantiation"
+	ETHEventNewMultisigSubmission     = "Submission"
 	ETHEventNewTCRApplication         = "_Application"
 	ETHEventTCRApplicationWhitelisted = "_ApplicationWhitelisted"
 	ETHEventTCRApplicationRemoved     = "_ApplicationRemoved"
@@ -27,7 +28,7 @@ const (
 	ETHEventTCRChallengeSucceeded     = "_ChallengeSucceeded"
 	ETHEventTCRChallengeFailed        = "_ChallengeFailed"
 	ETHEventTCRWithdrawal             = "_Withdrawal"
-	ETHEventNewMultisigSubmission     = "Submission"
+	ETHEventTCRRewardClaimed          = "_RewardClaimed"
 )
 
 // TwitterEvent represents an incoming event from Twitter
@@ -95,6 +96,9 @@ func processETHEvent(event *ETHEvent, errChan chan<- error) {
 		break
 	case ETHEventTCRWithdrawal:
 		err = processWithdrawal(event)
+		break
+	case ETHEventTCRRewardClaimed:
+		err = processRewardClaimed(event)
 		break
 	}
 

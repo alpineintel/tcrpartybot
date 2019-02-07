@@ -721,8 +721,11 @@ func PLCRCommitVote(multisigAddress string, pollID *big.Int, amount *big.Int, vo
 	}
 
 	tx, err := submitTransaction(multisigAddress, proxiedTX)
-	log.Printf("Committing %d vote for %s on poll %s (tx: %s)", voteOption, multisigAddress, pollID, tx.Hash().Hex())
+	if err != nil {
+		return 0, nil, err
+	}
 
+	log.Printf("Committing %d vote for %s on poll %s (tx: %s)", voteOption, multisigAddress, pollID, tx.Hash().Hex())
 	return salt, tx, err
 }
 

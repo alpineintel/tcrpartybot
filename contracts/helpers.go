@@ -21,7 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func getListingHash(twitterHandle string) [32]byte {
+func GetListingHash(twitterHandle string) [32]byte {
 	if twitterHandle == "obstropolos" {
 		twitterHandle = "Obstropolos"
 	}

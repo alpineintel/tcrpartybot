@@ -6,104 +6,120 @@ import (
 
 	goTwitter "github.com/stevenleeg/go-twitter/twitter"
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
+
+var listingHashTwitterID = map[[32]byte]string{}
+var idHandle = map[string]string{}
+
+func fetchListings() ([]string, error) {
+	listings, err := contracts.GetWhitelistedListings()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert listings into twitter IDs
+	var twitterIDs []string
+	log.Println("[Tweets] Filtering tweets by:")
+	for _, listing := range listings {
+		if id := listingHashTwitterID[listing.ListingHash]; id != "" {
+			twitterIDs = append(twitterIDs, id)
+			log.Printf("\t%s (cache)", idHandle[id])
+			continue
+		}
+
+		handle, err := contracts.GetListingDataFromHash(listing.ListingHash)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("\t%s", handle)
+
+		// Convert the handle to an ID
+		id, err := twitter.GetIDFromHandle(handle)
+		if err != nil {
+			return nil, err
+		}
+
+		strID := strconv.FormatInt(id, 10)
+		listingHashTwitterID[listing.ListingHash] = strID
+		idHandle[strID] = handle
+		twitterIDs = append(twitterIDs, strID)
+	}
+
+	return twitterIDs, nil
+}
+
+func handleTweet(tweet *goTwitter.Tweet) error {
+	// Make sure we've received a tweet from a user we're tracking
+	listingHash := contracts.GetListingHash(tweet.User.ScreenName)
+	if listingHashTwitterID[listingHash] == "" {
+		return nil
+	}
+
+	// Don't retweet replies or retweets
+	if tweet.InReplyToStatusIDStr != "" || tweet.RetweetedStatus != nil {
+		return nil
+	}
+
+	log.Printf("New tweet from @%s", tweet.User.ScreenName)
+	err := twitter.Retweet(twitter.PartyBotHandle, tweet.ID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // ListenAndRetweet listens for all tweets by users who are on the TCR and
 // retweets onto @TCRParty's timeline. It will also listen for updates on the
 // ethEvents channel and reset the twitter filter upon hearing of an
 // addition/removal of a listing on the TCR
 func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
-	var stream *goTwitter.Stream
-	refreshQueue := make(chan bool, 5)
-
-	refreshListings := func() {
-		refreshQueue <- true
-		listings, err := contracts.GetWhitelistedListings()
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		// Convert listings into twitter handles
-		var twitterIDs []string
-		idMap := map[int64]bool{}
-		log.Println("[Tweets] Filtering tweets by:")
-		for _, listing := range listings {
-			handle, err := contracts.GetListingDataFromHash(listing.ListingHash)
-			if err != nil {
-				errChan <- err
-				continue
-			}
-
-			log.Printf("\t%s", handle)
-			// Convert the handle to an ID
-			id, err := twitter.GetIDFromHandle(handle)
-			if err != nil {
-				errChan <- err
-				continue
-			}
-
-			idMap[id] = true
-			twitterIDs = append(twitterIDs, strconv.FormatInt(id, 10))
-		}
-
-		twitterStream, tweetChan, err := twitter.FilterTweets(twitterIDs)
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		// At this point we should check to see if anyone else has begun, if so
-		// we'll stop and let them take over from here.
-		<-refreshQueue
-		if len(refreshQueue) > 0 && stream != nil {
-			twitterStream.Stop()
-			return
-		} else if len(refreshQueue) > 0 {
-			return
-		}
-
-		// Otherwise we're cleared to go
-		stream = twitterStream
-		for tweet := range tweetChan {
-			// Make sure we've received a tweet from a user we're tracking
-			if !idMap[tweet.User.ID] {
-				continue
-			}
-
-			// Don't retweet replies or retweets
-			if tweet.InReplyToStatusIDStr != "" || tweet.RetweetedStatus != nil {
-				continue
-			}
-
-			log.Printf("New tweet from @%s", tweet.User.ScreenName)
-			err = twitter.Retweet(twitter.PartyBotHandle, tweet.ID)
-			if err != nil {
-				errChan <- err
-				continue
-			}
-		}
-		log.Println("Killing filter stream")
+	twitterIDs, err := fetchListings()
+	if err != nil {
+		errChan <- errors.Wrap(err)
+		return
 	}
 
-	go refreshListings()
+	stream, err := twitter.FilterTweets(twitterIDs)
+	if err != nil {
+		errChan <- errors.Wrap(err)
+		return
+	}
 
+	reset := make(chan bool)
+
+	// Start listening for tweets and retweeting
+	go func() {
+		for {
+			select {
+			case msg := <-stream.Messages:
+				tweet, ok := msg.(*goTwitter.Tweet)
+				if !ok {
+					continue
+				}
+
+				handleTweet(tweet)
+			case <-reset:
+				return
+			}
+		}
+	}()
+
+	// Listen for TCR changes that require us to reset the Twitter stream with
+	// a new filter
 	for {
 		event := <-ethEvents
-		// Listen for whitelisted/removal events
 		name := event.EventType
-		if name != ETHEventTCRApplicationWhitelisted && name != ETHEventTCRListingRemoved {
-			continue
+		if name == ETHEventTCRApplicationWhitelisted || name == ETHEventTCRListingRemoved {
+			break
 		}
-
-		log.Println("TCR update detected, refreshing list for retweets...")
-		// Stop the existing stream and start up a new one
-		if stream != nil {
-			stream.Stop()
-			stream = nil
-		}
-
-		go refreshListings()
 	}
+
+	log.Println("TCR update detected, refreshing list for retweets...")
+	reset <- true
+	stream.Stop()
+	go ListenAndRetweet(ethEvents, errChan)
 }

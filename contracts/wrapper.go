@@ -182,7 +182,7 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 	}
 
 	// Generate a new proxied transaction to be submitted via the wallet
-	listingHash := getListingHash(twitterHandle)
+	listingHash := GetListingHash(twitterHandle)
 	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
 	proxiedTX, err := newProxiedTransaction(
 		contractAddress,
@@ -209,7 +209,7 @@ func Apply(multisigAddress string, amount *big.Int, twitterHandle string) (*type
 // Withdraw calls the withdraw method on the registry contract, taking unstaked
 // tokens out of the registry and returning it to a listing's owner.
 func Withdraw(twitterHandle string, amount *big.Int) (*types.Transaction, error) {
-	listingHash := getListingHash(twitterHandle)
+	listingHash := GetListingHash(twitterHandle)
 
 	listing, err := GetListingFromHash(listingHash)
 	if err != nil {
@@ -269,7 +269,7 @@ func CreateChallenge(multisigAddress string, amount *big.Int, twitterHandle stri
 	}
 
 	// Generate a new proxied transaction to be submitted via the wallet
-	listingHash := getListingHash(twitterHandle)
+	listingHash := GetListingHash(twitterHandle)
 	contractAddress := common.HexToAddress(os.Getenv("TCR_ADDRESS"))
 	proxiedTX, err := newProxiedTransaction(
 		contractAddress,
@@ -355,7 +355,7 @@ func AwaitTransactionConfirmation(txHash common.Hash) (*types.Receipt, error) {
 // ApplicationWasMade returns true or false depending on whether or not a
 // twitter handle is already an application or listing on the registry
 func ApplicationWasMade(twitterHandle string) (bool, error) {
-	listingHash := getListingHash(twitterHandle)
+	listingHash := GetListingHash(twitterHandle)
 	client, err := GetClientSession()
 	if err != nil {
 		return false, err
@@ -378,7 +378,7 @@ func ApplicationWasMade(twitterHandle string) (bool, error) {
 // GetListingFromHandle returns a listing from the TCR based on a twitter handle
 func GetListingFromHandle(twitterHandle string) (*RegistryListing, error) {
 	// Generate a listing hash from the handle's string value
-	listingHash := getListingHash(twitterHandle)
+	listingHash := GetListingHash(twitterHandle)
 	return GetListingFromHash(listingHash)
 }
 

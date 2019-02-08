@@ -50,10 +50,10 @@ func GetIDFromHandle(handle string) (int64, error) {
 
 // FilterTweets will begin filtering tweets and outputting them to the returned
 // channel
-func FilterTweets(twitterIDs []string) (*twitter.Stream, <-chan *twitter.Tweet, error) {
+func FilterTweets(twitterIDs []string) (*twitter.Stream, error) {
 	client, _, err := GetClientFromHandle(VIPBotHandle)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	params := &twitter.StreamFilterParams{
@@ -62,22 +62,10 @@ func FilterTweets(twitterIDs []string) (*twitter.Stream, <-chan *twitter.Tweet, 
 
 	stream, err := client.Streams.Filter(params)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// Start listening on a separate goroutine
-	tweetChan := make(chan *twitter.Tweet)
-	go func() {
-		demux := twitter.NewSwitchDemux()
-		demux.Tweet = func(tweet *twitter.Tweet) {
-			tweetChan <- tweet
-		}
-
-		defer close(tweetChan)
-		demux.HandleChan(stream.Messages)
-	}()
-
-	return stream, tweetChan, nil
+	return stream, nil
 }
 
 // Retweet creates a new RT of the given tweet ID

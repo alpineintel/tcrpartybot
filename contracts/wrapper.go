@@ -488,19 +488,6 @@ func GetListingOwnerFromHash(listingHash [32]byte) (*common.Address, error) {
 	return &applicationEvent.Applicant, nil
 }
 
-// GetListingDepositFromHash returns the deposit field from the most recent
-// Application event for the given listing hash.
-func GetListingDepositFromHash(listingHash [32]byte) (*big.Int, error) {
-	applicationEvent, err := getApplicationEventFromHash(listingHash)
-	if err != nil {
-		return nil, err
-	} else if applicationEvent == nil {
-		return nil, nil
-	}
-
-	return applicationEvent.Deposit, nil
-}
-
 // GetListingHashFromChallenge returns the listing hash being challenged given a
 // challenge's ID. This is useful for RewardClaimed events, where the challenge
 // ID is provided by the listing hash is not.

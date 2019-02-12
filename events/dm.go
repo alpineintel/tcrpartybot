@@ -27,7 +27,6 @@ const (
 	errorMsg                    = "Yikes, we ran into an error: %s. Try tweeting at @stevenleeg for help."
 	activatingAccountMsg        = "Welcome back to the party! We unfortunately had to reset the TCR after killing Ropsten, but we're glad to see you back. Give me a minute while I rebuild your wallet 👷‍♀️..."
 
-	depositAmount     = 500
 	defaultVoteWeight = 50
 	faucetAmount      = 100
 

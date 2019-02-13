@@ -154,6 +154,11 @@ func ensureTransactionSubmission(submit txSubmitter) (*types.Transaction, error)
 			log.Println("Underpriced tx, trying again in 5s")
 			time.Sleep(5 * time.Second)
 			continue
+		} else if err != nil && err.Error() == core.ErrNonceTooLow.Error() {
+			// Underpriced transaction, let's try again in a bit
+			log.Println("Nonce too low, trying again in 5s")
+			time.Sleep(5 * time.Second)
+			continue
 		} else if err != nil {
 			// Some other error
 			return nil, err

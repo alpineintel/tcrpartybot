@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	disbursementMsg = "Aaaand we're back, but this time on Rinkeby (see @stevenleeg's timeline for details). Your balance has been set to %d TCRP. Respond with 'help' to see what you can do with these tokens."
+	disbursementMsg = "Your wallet has been built successfully!. Your balance has been set to %d TCRP. Respond with 'help' to see what you can do with these tokens."
 )
 
 type incomingDM struct {
@@ -43,8 +43,9 @@ type user struct {
 }
 
 type incomingTweet struct {
-	Text string `json:"text"`
-	User user   `json:"user"`
+	IDStr string `json:"id_str"`
+	Text  string `json:"text"`
+	User  user   `json:"user"`
 }
 
 type incomingFollow struct {
@@ -138,6 +139,7 @@ func (server *Server) processMentions(tweets []incomingTweet) {
 	for _, tweet := range tweets {
 		server.eventsChan <- &events.TwitterEvent{
 			EventType:    events.TwitterEventTypeMention,
+			ObjectID:     tweet.IDStr,
 			Time:         time.Now().UTC(),
 			SourceHandle: tweet.User.ScreenName,
 			SourceID:     tweet.User.ID,

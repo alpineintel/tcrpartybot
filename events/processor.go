@@ -35,6 +35,7 @@ const (
 type TwitterEvent struct {
 	EventType    twitterEventType // type of event
 	Time         time.Time        // timestamp
+	ObjectID     string           // ID of incoming event's object (ie a tweet ID for a mention)
 	SourceHandle string           // twitter handle sending
 	SourceID     int64            // twitter ID of the handle
 	Message      string           // whole message

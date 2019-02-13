@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	disbursementMsg = "Aaaand we're back, but this time on Rinkeby (see @stevenleeg's timeline for details). Your balance has been set to %d TCRP. Respond with 'help' to see what you can do with these tokens."
+	disbursementMsg = "Your wallet has been built successfully!. Your balance has been set to %d TCRP. Respond with 'help' to see what you can do with these tokens."
 )
 
 type incomingDM struct {

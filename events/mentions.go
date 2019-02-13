@@ -73,6 +73,11 @@ func processMention(event *TwitterEvent, errChan chan<- error) {
 	}
 
 	log.Printf("\nReceived mention from %s [%d]: %s", event.SourceHandle, event.SourceID, event.Message)
+	err := models.CreateMentionAnalyticsEvent(event.SourceID, event.ObjectID, event.Message)
+	if err != nil {
+		errChan <- errors.Wrap(err)
+		return
+	}
 
 	lower := strings.ToLower(event.Message)
 

@@ -78,8 +78,14 @@ func generateSendDM(account *models.Account, errChan chan<- error) func(message 
 func processDM(event *TwitterEvent, errChan chan<- error) {
 	log.Printf("Received DM from %s: %s", event.SourceHandle, event.Message)
 
+	err := models.CreateDMAnalyticsEvent(event.SourceID, event.Message)
+	if err != nil {
+		errChan <- errors.Wrap(err)
+		return
+	}
+
 	// If they don't have an acccount, do nothing.
-	account, err := models.FindAccountByHandle(event.SourceHandle)
+	account, err := models.FindAccountByTwitterID(event.SourceID)
 	if account == nil || err != nil {
 		err := twitter.SendDM(event.SourceID, noAccountMsg)
 		if err != nil {

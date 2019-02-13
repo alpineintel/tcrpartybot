@@ -43,8 +43,9 @@ type user struct {
 }
 
 type incomingTweet struct {
-	Text string `json:"text"`
-	User user   `json:"user"`
+	IDStr string `json:"id_str"`
+	Text  string `json:"text"`
+	User  user   `json:"user"`
 }
 
 type incomingFollow struct {
@@ -138,6 +139,7 @@ func (server *Server) processMentions(tweets []incomingTweet) {
 	for _, tweet := range tweets {
 		server.eventsChan <- &events.TwitterEvent{
 			EventType:    events.TwitterEventTypeMention,
+			ObjectID:     tweet.IDStr,
 			Time:         time.Now().UTC(),
 			SourceHandle: tweet.User.ScreenName,
 			SourceID:     tweet.User.ID,

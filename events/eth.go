@@ -15,7 +15,8 @@ import (
 const (
 	newApplicationWithHandleTweet    = "New #TCRParty listing! %s has nominated %s to be on the list for %s TCRP. Challenge this application by DMing 'challenge %s'."
 	newApplicationWithoutHandleTweet = "New #TCRParty listing! %s has been nominated to be on the list for %s TCRP. Challenge this application by DMing 'challenge %s'."
-	newChallengeTweet                = "New #TCRParty challenge! %s's listing has been put to the test. Send me a DM with 'vote %s keep/kick' to determine their fate."
+	newChallengeWithoutAccountTweet  = "New #TCRParty challenge! %s's listing has been put to the test. Send me a DM with 'vote %s keep/kick' to determine their fate."
+	newChallengeWithAccountTweet     = "New #TCRParty challenge! %s's listing has been put to the test by %s. Send me a DM with 'vote %s keep/kick' to determine their fate."
 	applicationWhitelistedTweet      = "%s has been successfully added to the #TCRParty!"
 	applicationRemovedTweet          = "%s has been removed from the #TCRParty."
 	challengeSucceededTweet          = "The challenge against %s's listing succeeded! They're out of the party."
@@ -267,11 +268,26 @@ func processNewChallenge(event *ETHEvent) error {
 
 	log.Printf("New challenge for %s (hash: 0x%x)", challenge.Data, challenge.ListingHash)
 
-	tweet := fmt.Sprintf(
-		newChallengeTweet,
-		challenge.Data,
-		challenge.Data,
-	)
+	tweet := ""
+
+	// Was it a bot user that did this?
+	account, err := models.FindAccountByMultisigAddress(challenge.Challenger.Hex())
+	if err != nil {
+		return err
+	} else if account == nil {
+		tweet = fmt.Sprintf(
+			newChallengeWithoutAccountTweet,
+			challenge.Data,
+			challenge.Data,
+		)
+	} else {
+		tweet = fmt.Sprintf(
+			newChallengeWithAccountTweet,
+			challenge.Data,
+			account.TwitterHandle,
+			challenge.Data,
+		)
+	}
 
 	return twitter.SendTweet(twitter.VIPBotHandle, tweet)
 }

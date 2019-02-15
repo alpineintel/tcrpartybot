@@ -177,6 +177,8 @@ func processDM(event *TwitterEvent, errChan chan<- error) {
 		err = handleVoteDeposit(account, argv, sendDM)
 	case "vote-withdraw":
 		err = handleVoteWithdraw(account, argv, sendDM)
+	case "status":
+		err = handleStatus(account, argv, sendDM)
 	case "help":
 		sendDM(helpMsg)
 	default:

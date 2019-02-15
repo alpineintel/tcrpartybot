@@ -18,7 +18,7 @@ import (
 
 const (
 	helpString = `Welcome to the TCR Party REPL! Available commands:
-	dm [from handle, w/o @] [message]      - Simulates a Twitter DM
+	dm [from id, w/o @] [message]      - Simulates a Twitter DM
 	mention [from handle, w/o @] [message] - Simulates a Twitter mention
 	mention-id [from id]  [message]        - Simulates a Twitter mention using an ID
 	follow [id]                            - Simulates a follow from the given Twitter ID
@@ -101,8 +101,24 @@ func beginRepl(eventChan chan<- *events.TwitterEvent, errChan chan<- error) {
 				continue
 			}
 
+			twitterID, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				errChan <- err
+				continue
+			}
+
+			account, err := models.FindAccountByTwitterID(twitterID)
+			if err != nil {
+				errChan <- err
+				continue
+			} else if account == nil {
+				fmt.Printf("Could not find account with Twitter ID %d", twitterID)
+				continue
+			}
+
 			eventChan <- &events.TwitterEvent{
-				SourceHandle: args[0],
+				SourceHandle: account.TwitterHandle,
+				SourceID:     account.TwitterID,
 				Message:      strings.Join(args[1:], " "),
 				EventType:    events.TwitterEventTypeDM,
 				Time:         time.Now().UTC(),

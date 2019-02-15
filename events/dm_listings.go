@@ -1,11 +1,12 @@
 package events
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"gitlab.com/alpinefresh/tcrpartybot/contracts"
+	"gitlab.com/alpinefresh/tcrpartybot/errors"
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 	"gitlab.com/alpinefresh/tcrpartybot/twitter"
 )
@@ -167,6 +168,83 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
 
 	msg := fmt.Sprintf(challengeSubmissionSuccessMsg, humanBalance, tx.Hash().Hex())
+	sendDM(msg)
+
+	return nil
+}
+
+func handleStatus(account *models.Account, argv []string, sendDM func(string)) error {
+	if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
+		return errors.New("user attempted to status without a multisig address")
+	}
+
+	// Fetch all listings created by the user
+	applicationEvents, err := contracts.GetApplicationsByAddress(account.MultisigAddress.String)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+
+	// Create a cache
+	cache := map[[32]byte]*contracts.RegistryListing{}
+	msg := "Your current listings are:\n"
+
+	listingCount := 0
+	for _, event := range applicationEvents {
+		if cache[event.ListingHash] != nil {
+			continue
+		}
+
+		// Make sure the most recent listing is owned by them, otherwise we can
+		// skip.
+		currentOwner, err := contracts.GetListingOwnerFromHash(event.ListingHash)
+		if err != nil {
+			return errors.Wrap(err)
+		} else if currentOwner.Hex() != account.MultisigAddress.String {
+			continue
+		}
+
+		listing, err := contracts.GetListingFromHash(event.ListingHash)
+		if err != nil {
+			return errors.Wrap(err)
+		} else if listing == nil {
+			continue
+		}
+
+		handle := event.Data
+
+		if listing.ChallengeID.Cmp(big.NewInt(0)) != 0 {
+			challenge, err := contracts.GetChallenge(listing.ChallengeID)
+			if err != nil {
+				return errors.Wrap(err)
+			}
+
+			status := []string{}
+
+			if listing.Whitelisted {
+				status = append(status, "whitelisted")
+			} else {
+				status = append(status, "nominated")
+			}
+
+			if !challenge.Resolved {
+				status = append(status, "in challenge")
+			}
+
+			msg += fmt.Sprintf("%s (%s)", handle, strings.Join(status, ", "))
+		} else if listing.Whitelisted {
+			msg += fmt.Sprintf("%s (on the list)\n", handle)
+		} else if !listing.Whitelisted {
+			msg += fmt.Sprintf("%s (nominated)\n", handle)
+		}
+
+		listingCount++
+		cache[event.ListingHash] = listing
+	}
+
+	if listingCount == 0 {
+		msg = "You have no active listings on the TCR."
+	}
+
 	sendDM(msg)
 
 	return nil

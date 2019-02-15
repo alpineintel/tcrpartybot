@@ -221,7 +221,7 @@ func handleStatus(account *models.Account, argv []string, sendDM func(string)) e
 			status := []string{}
 
 			if listing.Whitelisted {
-				status = append(status, "whitelisted")
+				status = append(status, "on the list")
 			} else {
 				status = append(status, "nominated")
 			}

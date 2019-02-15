@@ -417,6 +417,52 @@ func GetListingFromHash(listingHash [32]byte) (*RegistryListing, error) {
 	return &listing, nil
 }
 
+// GetApplicationsByAddress retrieves a list of all applications made by the
+// given address. Note that these applications may or may not still be active,
+// as we are only returning a list of _Application events. Further processing
+// is required in order to get a list of active listings on the registry.
+func GetApplicationsByAddress(address string) ([]*RegistryApplication, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	blockCursor := new(big.Int)
+	fromBlock, ok := blockCursor.SetString(os.Getenv("START_BLOCK"), 10)
+	if !ok {
+		return nil, errors.New("Could not set fromBlock while getting active registry listings")
+	}
+
+	query := ethereum.FilterQuery{
+		Addresses: []common.Address{
+			common.HexToAddress(os.Getenv("TCR_ADDRESS")),
+		},
+		FromBlock: fromBlock,
+		Topics: [][]common.Hash{
+			{common.HexToHash(applicationTopicHash)},
+		},
+	}
+
+	logs, err := client.FilterLogs(context.Background(), query)
+	if err != nil {
+		return nil, err
+	}
+
+	events := []*RegistryApplication{}
+	for _, event := range logs {
+		event, err := DecodeApplicationEvent(event.Topics, event.Data)
+		if err != nil {
+			return nil, err
+		} else if event.Applicant.Hex() != address {
+			continue
+		}
+
+		events = append(events, event)
+	}
+
+	return events, nil
+}
+
 func getApplicationEventFromHash(listingHash [32]byte) (*RegistryApplication, error) {
 	client, err := GetClientSession()
 	if err != nil {

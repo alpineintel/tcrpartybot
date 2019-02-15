@@ -247,7 +247,7 @@ func handleStatus(account *models.Account, argv []string, sendDM func(string)) e
 	}
 
 	if listingCount == 0 {
-		msg = "You have no active listings on the TCR."
+		msg = "You have no active listings on the TCR.\n"
 	}
 
 	// Are they themselves on the list?
@@ -255,9 +255,9 @@ func handleStatus(account *models.Account, argv []string, sendDM func(string)) e
 	listing, err := contracts.GetListingFromHash(listingHash)
 	if err != nil {
 		return errors.Wrap(err)
-	} else if listing == nil {
+	} else if cache[listingHash] == nil && listing == nil {
 		msg += "\nYour twitter handle is not on the list."
-	} else {
+	} else if cache[listingHash] == nil {
 		status, err := generateStatusString(listing)
 		if err != nil {
 			return errors.Wrap(err)

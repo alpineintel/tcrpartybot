@@ -173,6 +173,33 @@ func handleChallenge(account *models.Account, argv []string, sendDM func(string)
 	return nil
 }
 
+func generateStatusString(listing *contracts.RegistryListing) (string, error) {
+	if listing.ChallengeID.Cmp(big.NewInt(0)) != 0 {
+		challenge, err := contracts.GetChallenge(listing.ChallengeID)
+		if err != nil {
+			return "", err
+		}
+
+		status := []string{}
+
+		if listing.Whitelisted {
+			status = append(status, "on the list")
+		} else {
+			status = append(status, "nominated")
+		}
+
+		if !challenge.Resolved {
+			status = append(status, "in challenge")
+		}
+
+		return strings.Join(status, ","), nil
+	} else if listing.Whitelisted {
+		return "on the list", nil
+	}
+
+	return "nominated", nil
+}
+
 func handleStatus(account *models.Account, argv []string, sendDM func(string)) error {
 	if account.MultisigAddress == nil || !account.MultisigAddress.Valid {
 		return errors.New("user attempted to status without a multisig address")
@@ -210,39 +237,32 @@ func handleStatus(account *models.Account, argv []string, sendDM func(string)) e
 			continue
 		}
 
-		handle := event.Data
-
-		if listing.ChallengeID.Cmp(big.NewInt(0)) != 0 {
-			challenge, err := contracts.GetChallenge(listing.ChallengeID)
-			if err != nil {
-				return errors.Wrap(err)
-			}
-
-			status := []string{}
-
-			if listing.Whitelisted {
-				status = append(status, "on the list")
-			} else {
-				status = append(status, "nominated")
-			}
-
-			if !challenge.Resolved {
-				status = append(status, "in challenge")
-			}
-
-			msg += fmt.Sprintf("%s (%s)\n", handle, strings.Join(status, ", "))
-		} else if listing.Whitelisted {
-			msg += fmt.Sprintf("%s (on the list)\n", handle)
-		} else if !listing.Whitelisted {
-			msg += fmt.Sprintf("%s (nominated)\n", handle)
+		status, err := generateStatusString(listing)
+		if err != nil {
+			return errors.Wrap(err)
 		}
-
+		msg += fmt.Sprintf("%s (%s)\n", event.Data, status)
 		listingCount++
 		cache[event.ListingHash] = listing
 	}
 
 	if listingCount == 0 {
-		msg = "You have no active listings on the TCR."
+		msg = "You have no active listings on the TCR.\n"
+	}
+
+	// Are they themselves on the list?
+	listingHash := contracts.GetListingHash(account.TwitterHandle)
+	listing, err := contracts.GetListingFromHash(listingHash)
+	if err != nil {
+		return errors.Wrap(err)
+	} else if cache[listingHash] == nil && listing == nil {
+		msg += "\nYour twitter handle is not on the list."
+	} else if cache[listingHash] == nil {
+		status, err := generateStatusString(listing)
+		if err != nil {
+			return errors.Wrap(err)
+		}
+		msg += fmt.Sprintf("\nYour Twitter handle is %s.", status)
 	}
 
 	sendDM(msg)

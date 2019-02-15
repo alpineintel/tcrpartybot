@@ -221,7 +221,7 @@ func handleStatus(account *models.Account, argv []string, sendDM func(string)) e
 			status := []string{}
 
 			if listing.Whitelisted {
-				status = append(status, "whitelisted")
+				status = append(status, "on the list")
 			} else {
 				status = append(status, "nominated")
 			}
@@ -230,7 +230,7 @@ func handleStatus(account *models.Account, argv []string, sendDM func(string)) e
 				status = append(status, "in challenge")
 			}
 
-			msg += fmt.Sprintf("%s (%s)", handle, strings.Join(status, ", "))
+			msg += fmt.Sprintf("%s (%s)\n", handle, strings.Join(status, ", "))
 		} else if listing.Whitelisted {
 			msg += fmt.Sprintf("%s (on the list)\n", handle)
 		} else if !listing.Whitelisted {

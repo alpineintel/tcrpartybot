@@ -208,11 +208,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:438d4eff31c4f45d5c2bf93d44e620b0240c283e482cf3ff60e9286edb882df0"
+  digest = "1:801d13c67581735510ad9db7b5794ae67ac912e5b44919624aaa5766e094d53d"
   name = "github.com/stevenleeg/go-twitter"
   packages = ["twitter"]
   pruneopts = "UT"
-  revision = "edd0259b6bcb73d998c4b5200cbe70b5fa5a22f8"
+  revision = "819ddce06dbe4d91486ec545afe1d47c859b50ca"
 
 [[projects]]
   branch = "master"

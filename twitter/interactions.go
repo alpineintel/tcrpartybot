@@ -240,7 +240,7 @@ func GetList() (*twitter.Members, error) {
 	}
 
 	members, _, err := client.Lists.Members(&twitter.ListsMembersParams{
-		Slug:            "tcr-party",
+		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
 		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
 	})
 	if err != nil {
@@ -260,7 +260,7 @@ func AddHandlesToList(handles []string) error {
 
 	screenNames := strings.Join(handles, ",")
 	_, err = client.Lists.MembersCreateAll(&twitter.ListsMembersCreateAllParams{
-		Slug:            "tcr-party",
+		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
 		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
 		ScreenName:      screenNames,
 	})
@@ -277,7 +277,7 @@ func RemoveHandlesToList(handles []string) error {
 
 	screenNames := strings.Join(handles, ",")
 	_, err = client.Lists.MembersDestroyAll(&twitter.ListsMembersDestroyAllParams{
-		Slug:            "tcr-party",
+		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
 		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
 		ScreenName:      screenNames,
 	})
@@ -294,7 +294,7 @@ func GetListTweets(sinceID int64) ([]twitter.Tweet, error) {
 
 	fls := false
 	tweets, _, err := client.Lists.Statuses(&twitter.ListsStatusesParams{
-		Slug:            "tcr-party",
+		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
 		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
 		SinceID:         sinceID,
 		IncludeRetweets: &fls,

@@ -678,6 +678,27 @@ func GetWhitelistedListings() ([]*RegistryListing, error) {
 	return activeListings, nil
 }
 
+// GetWhitelistedHandles fetches a list of twitter handles currently
+// whitelisted on the TCR
+func GetWhitelistedHandles() ([]string, error) {
+	listings, err := GetWhitelistedListings()
+	if err != nil {
+		return nil, err
+	}
+
+	handles := make([]string, len(listings))
+	for i, listing := range listings {
+		handle, err := GetListingDataFromHash(listing.ListingHash)
+		if err != nil {
+			return nil, err
+		}
+
+		handles[i] = handle
+	}
+
+	return handles, nil
+}
+
 // UpdateStatus calls the updateStatus method on the registry contract,
 // allowing a listing past its application period to be promoted to a
 // whitelisted listing.

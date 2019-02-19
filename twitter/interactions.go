@@ -124,9 +124,18 @@ func SendDM(recipientID int64, message string) error {
 		return nil
 	}
 
-	_, _, err = client.DirectMessages.EventsCreate(&twitter.DirectMessageEventsCreateParams{
-		RecipientID: strconv.FormatInt(recipientID, 10),
-		Text:        message,
+	_, _, err = client.DirectMessages.EventsNew(&twitter.DirectMessageEventsNewParams{
+		Event: &twitter.DirectMessageEvent{
+			Type: "message_create",
+			Message: &twitter.DirectMessageEventMessage{
+				Target: &twitter.DirectMessageTarget{
+					RecipientID: strconv.FormatInt(recipientID, 10),
+				},
+				Data: &twitter.DirectMessageData{
+					Text: message,
+				},
+			},
+		},
 	})
 
 	if err != nil {

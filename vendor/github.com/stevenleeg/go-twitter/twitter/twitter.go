@@ -12,13 +12,15 @@ const twitterAPI = "https://api.twitter.com/1.1/"
 type Client struct {
 	sling *sling.Sling
 	// Twitter API Services
-	Accounts        *AccountService
 	AccountActivity *AccountActivityService
+	Accounts        *AccountService
 	DirectMessages  *DirectMessageService
 	Favorites       *FavoriteService
 	Followers       *FollowerService
 	Friends         *FriendService
 	Friendships     *FriendshipService
+	Lists           *ListsService
+	RateLimits      *RateLimitService
 	Search          *SearchService
 	Statuses        *StatusService
 	Streams         *StreamService
@@ -39,6 +41,8 @@ func NewClient(httpClient *http.Client) *Client {
 		Followers:       newFollowerService(base.New()),
 		Friends:         newFriendService(base.New()),
 		Friendships:     newFriendshipService(base.New()),
+		Lists:           newListService(base.New()),
+		RateLimits:      newRateLimitService(base.New()),
 		Search:          newSearchService(base.New()),
 		Statuses:        newStatusService(base.New()),
 		Streams:         newStreamService(httpClient, base.New()),

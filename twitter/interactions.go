@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -124,9 +125,18 @@ func SendDM(recipientID int64, message string) error {
 		return nil
 	}
 
-	_, _, err = client.DirectMessages.EventsCreate(&twitter.DirectMessageEventsCreateParams{
-		RecipientID: strconv.FormatInt(recipientID, 10),
-		Text:        message,
+	_, _, err = client.DirectMessages.EventsNew(&twitter.DirectMessageEventsNewParams{
+		Event: &twitter.DirectMessageEvent{
+			Type: "message_create",
+			Message: &twitter.DirectMessageEventMessage{
+				Target: &twitter.DirectMessageTarget{
+					RecipientID: strconv.FormatInt(recipientID, 10),
+				},
+				Data: &twitter.DirectMessageData{
+					Text: message,
+				},
+			},
+		},
 	})
 
 	if err != nil {
@@ -220,4 +230,75 @@ func CreateSubscription() error {
 	_, err = client.AccountActivity.CreateSubscription(subParams)
 
 	return err
+}
+
+// GetList fetches the current members of the TCR list on Twitter
+func GetList() (*twitter.Members, error) {
+	client, _, err := GetClientFromHandle(PartyBotHandle)
+	if err != nil {
+		return nil, err
+	}
+
+	members, _, err := client.Lists.Members(&twitter.ListsMembersParams{
+		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
+		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return members, nil
+}
+
+// AddHandlesToList takes a slice of Twitter handles and adds them to the TCR
+// list on Twitter
+func AddHandlesToList(handles []string) error {
+	client, _, err := GetClientFromHandle(PartyBotHandle)
+	if err != nil {
+		return err
+	}
+
+	screenNames := strings.Join(handles, ",")
+	_, err = client.Lists.MembersCreateAll(&twitter.ListsMembersCreateAllParams{
+		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
+		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
+		ScreenName:      screenNames,
+	})
+	return err
+}
+
+// RemoveHandlesToList takes a slice of Twitter handles and removes them to the
+// TCR list on Twitter
+func RemoveHandlesToList(handles []string) error {
+	client, _, err := GetClientFromHandle(PartyBotHandle)
+	if err != nil {
+		return err
+	}
+
+	screenNames := strings.Join(handles, ",")
+	_, err = client.Lists.MembersDestroyAll(&twitter.ListsMembersDestroyAllParams{
+		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
+		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
+		ScreenName:      screenNames,
+	})
+	return err
+}
+
+// GetListTweets retrieves a slice of tweets created since the last tweet ID
+// provided
+func GetListTweets(sinceID int64) ([]twitter.Tweet, error) {
+	client, _, err := GetClientFromHandle(PartyBotHandle)
+	if err != nil {
+		return nil, err
+	}
+
+	fls := false
+	tweets, _, err := client.Lists.Statuses(&twitter.ListsStatusesParams{
+		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
+		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
+		SinceID:         sinceID,
+		IncludeRetweets: &fls,
+	})
+
+	return tweets, err
 }

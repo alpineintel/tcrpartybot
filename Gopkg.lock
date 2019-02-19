@@ -145,11 +145,12 @@
   version = "v0.5.0"
 
 [[projects]]
-  digest = "1:6c41d4f998a03b6604227ccad36edaed6126c397e5d78709ef4814a1145a6757"
+  digest = "1:648edb3f72f7b7b62320d3473ad8008ae03f90c1d01f559fc85c37b408e1a5dd"
   name = "github.com/jmoiron/sqlx"
   packages = [
     ".",
     "reflectx",
+    "types",
   ]
   pruneopts = "UT"
   revision = "d161d7a76b5661016ad0b085869f77fd410f3e6a"
@@ -207,11 +208,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9a504615275ea39a8cb86af221f862c5ad23e22c181d777228df664bfc34147e"
+  digest = "1:801d13c67581735510ad9db7b5794ae67ac912e5b44919624aaa5766e094d53d"
   name = "github.com/stevenleeg/go-twitter"
   packages = ["twitter"]
   pruneopts = "UT"
-  revision = "0fddac0c5807284269928937b512491785be602d"
+  revision = "819ddce06dbe4d91486ec545afe1d47c859b50ca"
 
 [[projects]]
   branch = "master"
@@ -295,6 +296,7 @@
     "github.com/ethereum/go-ethereum/ethclient",
     "github.com/ethereum/go-ethereum/event",
     "github.com/jmoiron/sqlx",
+    "github.com/jmoiron/sqlx/types",
     "github.com/joho/godotenv",
     "github.com/lib/pq",
     "github.com/stevenleeg/go-twitter/twitter",

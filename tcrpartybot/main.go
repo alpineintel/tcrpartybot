@@ -15,8 +15,9 @@ import (
 )
 
 func main() {
+	// Some pre-boot config
 	rand.Seed(time.Now().UnixNano())
-
+	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
 	godotenv.Load()
 
 	// Start the db connection pool

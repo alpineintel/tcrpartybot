@@ -2,6 +2,7 @@ package errors
 
 import (
 	"fmt"
+	"log"
 	"runtime"
 )
 
@@ -70,4 +71,15 @@ func (e *tcrpError) ErrorWithStacktrace() string {
 		str += fmt.Sprintf("\t%s:%d\n", call.File, call.Line)
 	}
 	return str
+}
+
+// LogErrors properly formats incoming errors from an errChan
+func LogErrors(errChan <-chan error) {
+	for err := range errChan {
+		if tcrpError, ok := err.(TCRPError); ok {
+			log.Printf("[error] %s", tcrpError.ErrorWithStacktrace())
+		} else {
+			log.Printf("[error] %s", err.Error())
+		}
+	}
 }

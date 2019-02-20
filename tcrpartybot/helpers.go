@@ -8,16 +8,6 @@ import (
 	"gitlab.com/alpinefresh/tcrpartybot/models"
 )
 
-func logErrors(errChan <-chan error) {
-	for err := range errChan {
-		if tcrpError, ok := err.(errors.TCRPError); ok {
-			log.Printf("[error] %s", tcrpError.ErrorWithStacktrace())
-		} else {
-			log.Printf("[error] %s", err.Error())
-		}
-	}
-}
-
 func deployWallet(errChan chan<- error) {
 	tx, identifier, err := contracts.DeployWallet()
 	if err != nil {

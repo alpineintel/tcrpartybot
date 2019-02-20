@@ -6,6 +6,7 @@ import (
 
 const (
 	LatestSyncedBlockKey   = "LatestSyncedBlock"
+	LatestLoggedBlockKey   = "LatestLoggedBlock"
 	LatestSyncedTweetKey   = "LatestSyncedTweet"
 	TwitterRequestTokenKey = "TwitterRequestToken"
 )

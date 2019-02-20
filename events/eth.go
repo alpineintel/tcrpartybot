@@ -367,6 +367,9 @@ func processChallengeSucceeded(ethEvent *ETHEvent) error {
 	listingOwner, err := models.FindAccountByMultisigAddress(listingOwnerAddress.Hex())
 	if err != nil {
 		return err
+	} else if listingOwner == nil {
+		// The listing owner isn't using the bot, we're not worried about them
+		return nil
 	}
 
 	balance, err := contracts.GetTokenBalance(listingOwner.MultisigAddress.String)

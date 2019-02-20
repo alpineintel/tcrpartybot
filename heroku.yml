@@ -1,4 +1,4 @@
 build:
     docker:
         web: Dockerfile
-        stats: Dockerfile-stats
+        scanner: Dockerfile-scanner

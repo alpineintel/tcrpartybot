@@ -38,6 +38,11 @@ type mentionEventData struct {
 	TweetID       string `json:"tweet_id"`
 }
 
+type ethEventData struct {
+	EventName string      `json:"event_name"`
+	EventData interface{} `json:"event_data"`
+}
+
 func createAnalyticsEvent(event *AnalyticsEvent) error {
 	db := GetDBSession()
 

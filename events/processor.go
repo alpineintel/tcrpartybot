@@ -21,14 +21,30 @@ const (
 	ETHEventNewMultisigWallet         = "ContractInstantiation"
 	ETHEventNewMultisigSubmission     = "Submission"
 	ETHEventNewTCRApplication         = "_Application"
+	ETHEventNewTCRChallenge           = "_Challenge"
+	ETHEventTCRDeposit                = "_Deposit"
+	ETHEventTCRWithdrawal             = "_Withdrawal"
 	ETHEventTCRApplicationWhitelisted = "_ApplicationWhitelisted"
 	ETHEventTCRApplicationRemoved     = "_ApplicationRemoved"
 	ETHEventTCRListingRemoved         = "_ListingRemoved"
-	ETHEventNewTCRChallenge           = "_Challenge"
-	ETHEventTCRChallengeSucceeded     = "_ChallengeSucceeded"
+	ETHEventTCRListingWithdrawn       = "_ListingWithdrawn"
+	ETHEventTCRTouchAndRemoved        = "_TouchAndRemoved"
 	ETHEventTCRChallengeFailed        = "_ChallengeFailed"
-	ETHEventTCRWithdrawal             = "_Withdrawal"
+	ETHEventTCRChallengeSucceeded     = "_ChallengeSucceeded"
 	ETHEventTCRRewardClaimed          = "_RewardClaimed"
+	ETHEventTCRExitInitialized        = "_ExitInitialized"
+
+	ETHEventTokenTransfer     = "Transfer"
+	ETHEventTokenApproval     = "Approval"
+	ETHEventTokenMint         = "Mint"
+	ETHEventTokenMintFinished = "MintFinished"
+
+	ETHEventPLCRVoteCommitted         = "_VoteCommitted"
+	ETHEventPLCRPollCreated           = "_PollCreated"
+	ETHEventPLCRVoteRevealed          = "_VoteRevealed"
+	ETHEventPLCRVotingRightsGranted   = "_VotingRightsGranted"
+	ETHEventPLCRVotingRightsWithdrawn = "_VotingRightsWithdrawn"
+	ETHEventPLCRTokensRescued         = "_TokensRescued"
 )
 
 // TwitterEvent represents an incoming event from Twitter
@@ -43,9 +59,11 @@ type TwitterEvent struct {
 
 // ETHEvent represents an incoming event from the blockchain
 type ETHEvent struct {
-	EventType string
-	Data      []byte
-	Topics    []common.Hash
+	EventType   string
+	CreatedAt   *time.Time
+	BlockNumber uint64
+	Data        []byte
+	Topics      []common.Hash
 }
 
 // ProcessTwitterEvents listens for twitter events and fires of a corresponding handler
@@ -69,41 +87,46 @@ func ProcessTwitterEvents(eventChan <-chan *TwitterEvent, errorChan chan<- error
 }
 
 // ProcessETHEvents listens for blockchain events and fires a corresponding handler
-func processETHEvent(event *ETHEvent, errChan chan<- error) {
+func ProcessETHEvents(eventChan <-chan *ETHEvent, errChan chan<- error) {
 	var err error
 
-	log.Printf("Found event %s", event.EventType)
-	switch event.EventType {
-	case ETHEventNewMultisigWallet:
-		err = processMultisigWalletCreation(event)
-		break
-	case ETHEventNewTCRApplication:
-		err = processNewApplication(event)
-		break
-	case ETHEventTCRApplicationWhitelisted:
-		err = processApplicationWhitelisted(event)
-		break
-	case ETHEventTCRApplicationRemoved:
-		err = processApplicationRemoved(event)
-		break
-	case ETHEventTCRChallengeSucceeded:
-		err = processChallengeSucceeded(event)
-		break
-	case ETHEventTCRChallengeFailed:
-		err = processChallengeFailed(event)
-		break
-	case ETHEventNewTCRChallenge:
-		err = processNewChallenge(event)
-		break
-	case ETHEventTCRWithdrawal:
-		err = processWithdrawal(event)
-		break
-	case ETHEventTCRRewardClaimed:
-		err = processRewardClaimed(event)
-		break
-	}
+	for {
+		event := <-eventChan
+		go scheduleUpdateForEvent(event, errChan)
 
-	if err != nil {
-		errChan <- err
+		log.Printf("Found event %s", event.EventType)
+		switch event.EventType {
+		case ETHEventNewMultisigWallet:
+			err = processMultisigWalletCreation(event)
+			break
+		case ETHEventNewTCRApplication:
+			err = processNewApplication(event)
+			break
+		case ETHEventTCRApplicationWhitelisted:
+			err = processApplicationWhitelisted(event)
+			break
+		case ETHEventTCRApplicationRemoved:
+			err = processApplicationRemoved(event)
+			break
+		case ETHEventTCRChallengeSucceeded:
+			err = processChallengeSucceeded(event)
+			break
+		case ETHEventTCRChallengeFailed:
+			err = processChallengeFailed(event)
+			break
+		case ETHEventNewTCRChallenge:
+			err = processNewChallenge(event)
+			break
+		case ETHEventTCRWithdrawal:
+			err = processWithdrawal(event)
+			break
+		case ETHEventTCRRewardClaimed:
+			err = processRewardClaimed(event)
+			break
+		}
+
+		if err != nil {
+			errChan <- err
+		}
 	}
 }

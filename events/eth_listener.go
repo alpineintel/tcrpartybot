@@ -23,12 +23,11 @@ type watchedContract struct {
 	TopicStructs map[common.Hash]interface{}
 }
 
-type topicResource struct {
-	Name     string
-	Contract watchedContract
-}
+// WatchedContractGenerator is a function that should be passed into
+// ETHListener to generate a list of contracts that need to be watched.
+type WatchedContractGenerator func() ([]*watchedContract, error)
 
-func generateContracts() ([]*watchedContract, error) {
+func generateBotContracts() ([]*watchedContract, error) {
 	walletFactoryABI, err := abi.JSON(strings.NewReader(string(contracts.MultiSigWalletFactoryABI)))
 	if err != nil {
 		return nil, errors.Wrap(err)
@@ -51,8 +50,66 @@ func generateContracts() ([]*watchedContract, error) {
 	}, nil
 }
 
-// StartETHListener begins listening for relevant events on the ETH blockchain
-func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
+func generateAllContracts() ([]*watchedContract, error) {
+	walletFactoryABI, err := abi.JSON(strings.NewReader(string(contracts.MultiSigWalletFactoryABI)))
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	registryABI, err := abi.JSON(strings.NewReader(string(contracts.RegistryABI)))
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	tokenABI, err := abi.JSON(strings.NewReader(string(contracts.TCRPartyPointsABI)))
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	plcrABI, err := abi.JSON(strings.NewReader(string(contracts.PLCRVotingABI)))
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	plcrAddress, err := contracts.GetPLCRContractAddress()
+	if err != nil {
+		return nil, errors.Wrap(err)
+	}
+
+	return []*watchedContract{
+		&watchedContract{
+			ABI:     walletFactoryABI,
+			Address: common.HexToAddress(os.Getenv("WALLET_FACTORY_ADDRESS")),
+		},
+		&watchedContract{
+			ABI:     registryABI,
+			Address: common.HexToAddress(os.Getenv("TCR_ADDRESS")),
+		},
+		&watchedContract{
+			ABI:     tokenABI,
+			Address: common.HexToAddress(os.Getenv("TOKEN_ADDRESS")),
+		},
+		&watchedContract{
+			ABI:     plcrABI,
+			Address: plcrAddress,
+		},
+	}, nil
+}
+
+// StartBotListener starts ETHListener, passing in the set of contracts needed
+// for the bot to operate
+func StartBotListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
+	ETHListener(ethEvents, errChan, generateBotContracts, models.LatestSyncedBlockKey)
+}
+
+// StartScannerListener starts ETH Listener, passing in all contracts that make
+// up the TCR for logging purposes.
+func StartScannerListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
+	ETHListener(ethEvents, errChan, generateAllContracts, models.LatestLoggedBlockKey)
+}
+
+// ETHListener begins listening for relevant events on the ETH blockchain
+func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContracts WatchedContractGenerator, lastSyncedKey string) {
 	client, err := contracts.GetClientSession()
 	if err != nil {
 		errChan <- errors.Wrap(err)
@@ -86,7 +143,7 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 		time.Sleep(3 * time.Second)
 
 		// Get the previously synced block number
-		val, err := models.GetKey(models.LatestSyncedBlockKey)
+		val, err := models.GetKey(lastSyncedKey)
 		if err != nil {
 			errChan <- errors.Wrap(err)
 			continue
@@ -131,6 +188,15 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 				continue
 			}
 
+			// Get the block timestamp
+			header, err := client.HeaderByNumber(context.Background(), block)
+			if err != nil {
+				errChan <- err
+				continue
+			}
+
+			blockTime := time.Unix(header.Time.Int64(), 0)
+
 			// Look for a topic that we're interested in
 			for _, topicHash := range ethLog.Topics {
 				eventName := watchedTopics[topicHash]
@@ -140,18 +206,18 @@ func StartETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 
 				// We've found one! Let's submit it to our event channel
 				event := &ETHEvent{
-					EventType: eventName,
-					Data:      ethLog.Data,
-					Topics:    ethLog.Topics,
+					EventType:   eventName,
+					CreatedAt:   &blockTime,
+					BlockNumber: ethLog.BlockNumber,
+					Data:        ethLog.Data,
+					Topics:      ethLog.Topics,
 				}
 
 				ethEvents <- event
-				go processETHEvent(event, errChan)
-				go scheduleUpdateForEvent(event, errChan)
 			}
 		}
 
-		err = models.SetKey(models.LatestSyncedBlockKey, latestBlock.Number.String())
+		err = models.SetKey(lastSyncedKey, latestBlock.Number.String())
 		if err != nil {
 			errChan <- errors.Wrap(err)
 		}

@@ -27,12 +27,12 @@ func SyncList() error {
 	// Find any differences
 	listHandles := set.NewSet()
 	for _, member := range members.Users {
-		listHandles.Add(member.ScreenName)
+		listHandles.Add(strings.TrimSpace(strings.ToLower(member.ScreenName)))
 	}
 
 	tcrHandles := set.NewSet()
 	for _, handle := range whitelistedHandles {
-		tcrHandles.Add(handle)
+		tcrHandles.Add(strings.TrimSpace(strings.ToLower(handle)))
 	}
 
 	toRemove := []string{}

@@ -25,7 +25,6 @@ func main() {
 		var decoded interface{}
 		var err error
 
-		log.Printf("Found event %s", event.EventType)
 		switch event.EventType {
 		////
 		// Registry events

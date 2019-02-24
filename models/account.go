@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/jmoiron/sqlx"
+	"math/big"
 	"time"
 )
 
@@ -109,7 +110,7 @@ func FindAccountByMultisigAddress(address string) (*Account, error) {
 	db := GetDBSession()
 
 	account := Account{}
-	err := db.Get(&account, "SELECT * FROM accounts WHERE multisig_address=$1", address)
+	err := db.Get(&account, "SELECT * FROM accounts WHERE LOWER(multisig_address)=LOWER($1)", address)
 
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -239,4 +240,22 @@ func (a *Account) Destroy() error {
 	}
 
 	return tx.Commit()
+}
+
+func (a *Account) AddToWalletBalance(ethEventID int64, amount *big.Int) (*Balance, error) {
+	balance, err := FindLatestUserBalance(a.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return balance.AddToWalletBalance(ethEventID, amount)
+}
+
+func (a *Account) AddToPLCRBalance(ethEventID int64, amount *big.Int) (*Balance, error) {
+	balance, err := FindLatestUserBalance(a.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return balance.AddToPLCRBalance(ethEventID, amount)
 }

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 type ETHEvent struct {
 	ID          int64          `db:"id"`
 	EventType   string         `db:"event_type"`
-	Data        types.JSONText `db:"additionals"`
+	Data        types.JSONText `db:"data"`
 	BlockNumber uint64         `db:"block_number"`
 	CreatedAt   *time.Time     `db:"created_at"`
 }
@@ -47,4 +48,38 @@ func CreateETHEvent(eventType string, blockNumber uint64, timestamp *time.Time, 
 	}
 
 	return nil
+}
+
+// FindETHEventByID returns an ETH event given its ID
+func FindETHEventByID(id int64) (*ETHEvent, error) {
+	db := GetDBSession()
+
+	ethEvent := &ETHEvent{}
+	err := db.Get(ethEvent, "SELECT * FROM eth_events WHERE id=$1", id)
+
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	} else if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	return ethEvent, nil
+}
+
+// FindETHEventsSinceID returns all events that have occured with IDs greater
+// than the provided number. Since initial syncs have the potential of loading
+// thousands of events, this function will return at most 500 (this number was
+// selected arbitrarily and can be replaced based on performance) and return
+// true on the moreAvailable value, signaling that the user should call the
+// function again to retrieve the next batch of results.
+func FindETHEventsSinceID(id int64) (events []*ETHEvent, moreAvailable bool, err error) {
+	db := GetDBSession()
+
+	err = db.Select(&events, "SELECT * FROM eth_events WHERE id > $1 ORDER BY id ASC LIMIT 500", id)
+
+	if err != nil {
+		return nil, false, err
+	}
+
+	return events, len(events) == 500, nil
 }

@@ -21,6 +21,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+// GetListingHash converts a string twitter handle (without an @ symbol) into a
+// listing hash
 func GetListingHash(twitterHandle string) [32]byte {
 	if twitterHandle == "obstropolos" {
 		twitterHandle = "Obstropolos"
@@ -62,6 +64,18 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 		return nil, err
 	}
 
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("Could not convert public key to ECDSA")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		return nil, err
+	}
+
 	gasPrice, err := client.SuggestGasPrice(context.Background())
 	if err != nil {
 		return nil, err
@@ -81,6 +95,7 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Value = big.NewInt(0)
+	auth.Nonce = big.NewInt(int64(nonce))
 	auth.GasLimit = uint64(gasLimit)
 	auth.GasPrice = gasPrice
 
@@ -101,7 +116,7 @@ func submitTransaction(multisigAddress string, tx *proxiedTransaction) (*types.T
 
 	// Try the transaction until it goes through
 	return ensureTransactionSubmission(func() (*types.Transaction, error) {
-		txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
+		txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), gasLimit)
 		if err != nil {
 			return nil, err
 		}

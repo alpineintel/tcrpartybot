@@ -20,6 +20,7 @@ func main() {
 
 	go events.StartScannerListener(ethEvents, errChan)
 	go errors.LogErrors(errChan)
+	go events.UpdateBalances(errChan)
 
 	for event := range ethEvents {
 		var decoded interface{}
@@ -84,6 +85,9 @@ func main() {
 		case events.ETHEventPLCRTokensRescued:
 			decoded, err = contracts.DecodeTokensRescuedEvent(event.Topics, event.Data)
 
+		case events.ETHEventNewMultisigWallet:
+			continue
+
 		default:
 			log.Printf("Unrecognized event %s", event.EventType)
 			continue
@@ -94,7 +98,16 @@ func main() {
 			continue
 		}
 
-		err = models.CreateETHEvent(event.EventType, event.BlockNumber, event.CreatedAt, decoded)
+		event := &models.ETHEvent{
+			EventType:   event.EventType,
+			BlockNumber: event.BlockNumber,
+			CreatedAt:   event.CreatedAt,
+			TxHash:      event.TxHash,
+			TxIndex:     event.TxIndex,
+			LogIndex:    event.LogIndex,
+		}
+
+		err = models.CreateETHEvent(event, decoded)
 		if err != nil {
 			errChan <- errors.Wrap(err)
 			continue

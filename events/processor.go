@@ -62,6 +62,9 @@ type ETHEvent struct {
 	EventType   string
 	CreatedAt   *time.Time
 	BlockNumber uint64
+	TxIndex     uint
+	LogIndex    uint
+	TxHash      string
 	Data        []byte
 	Topics      []common.Hash
 }

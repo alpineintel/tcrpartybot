@@ -54,7 +54,6 @@ func main() {
 	// Start listening for relevant events on the blockchain
 	go events.StartBotListener(ethEvents, errChan)
 	go events.ProcessETHEvents(ethEvents, errChan)
-	go events.UpdateBalances(errChan)
 
 	startRepl := flag.Bool("repl", false, "Starts the debug REPL")
 	flag.Parse()

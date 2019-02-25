@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type watchedContract struct {
@@ -110,13 +112,7 @@ func StartScannerListener(ethEvents chan<- *ETHEvent, errChan chan<- error) {
 
 // ETHListener begins listening for relevant events on the ETH blockchain
 func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContracts WatchedContractGenerator, lastSyncedKey string) {
-	client, err := contracts.GetClientSession()
-	if err != nil {
-		errChan <- errors.Wrap(err)
-		return
-	}
-
-	contracts, err := generateContracts()
+	generatedContracts, err := generateContracts()
 	if err != nil {
 		errChan <- errors.Wrap(err)
 		return
@@ -126,7 +122,7 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 	watchedAddresses := []common.Address{}
 	watchedTopics := map[common.Hash]string{}
 
-	for _, contract := range contracts {
+	for _, contract := range generatedContracts {
 		watchedAddresses = append(watchedAddresses, contract.Address)
 
 		for _, event := range contract.ABI.Events {
@@ -138,9 +134,21 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 		Addresses: watchedAddresses,
 	}
 
+	syncing := false
+
 	// Begin the watching loop
 	for {
-		time.Sleep(3 * time.Second)
+		if !syncing {
+			time.Sleep(3 * time.Second)
+		} else {
+			syncing = false
+		}
+
+		client, err := contracts.GetClientSession()
+		if err != nil {
+			errChan <- errors.Wrap(err)
+			return
+		}
 
 		// Get the previously synced block number
 		val, err := models.GetKey(lastSyncedKey)
@@ -159,43 +167,65 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 		}
 
 		// Get the latest block number on the chain
-		latestBlock, err := client.HeaderByNumber(context.Background(), nil)
+		latestBlockHeader, err := client.HeaderByNumber(context.Background(), nil)
 		if err != nil {
 			errChan <- errors.Wrap(err)
 			continue
-		} else if latestBlock == nil || latestBlock.Number == nil {
+		} else if latestBlockHeader == nil || latestBlockHeader.Number == nil {
 			errChan <- errors.Errorf("Could not fetch latest block number, skipping watch loop")
 			continue
-		} else if latestBlock.Number.Cmp(blockCursor) == -1 {
-			errChan <- errors.Errorf("ethereum node reported block number lower than last seen. Eth reported: %s, I last saw: %s", latestBlock.Number.String(), blockCursor.String())
+		} else if latestBlockHeader.Number.Cmp(blockCursor) == -1 {
+			errChan <- errors.Errorf("ethereum node reported block number lower than last seen. Eth reported: %s, I last saw: %s", latestBlockHeader.Number.String(), blockCursor.String())
 			continue
+		}
+
+		diff := new(big.Int)
+		diff.Sub(latestBlockHeader.Number, blockCursor)
+		toBlock := new(big.Int)
+		toBlock.Set(latestBlockHeader.Number)
+
+		// Batch sync into chunks of 10k blocks
+		if diff.Cmp(big.NewInt(10000)) == 1 {
+			toBlock.Add(blockCursor, big.NewInt(10000))
+			log.Printf("Syncing from block %s to %s", blockCursor.String(), toBlock.String())
+			syncing = true
 		}
 
 		// The filter is inclusive, therefore we should add 1 to the last seen block
 		query.FromBlock = blockCursor.Add(blockCursor, big.NewInt(1))
+		query.ToBlock = toBlock
 
 		// Query the ETH node for any interesting events
 		logs, err := client.FilterLogs(context.Background(), query)
 		if err != nil {
-			errChan <- err
+			errChan <- errors.Wrap(err)
 			continue
 		}
 
+		// Create a cache for block header information, allowing us to share
+		// block timestamp data between multiple events within the same block
+		blockInfo := map[uint64]*types.Header{}
 		for _, ethLog := range logs {
-			block := big.NewInt(int64(ethLog.BlockNumber))
-			if block.Cmp(blockCursor) == -1 {
-				fmt.Printf("Found old event skipping")
-				continue
-			}
-
 			// Get the block timestamp
-			header, err := client.HeaderByNumber(context.Background(), block)
-			if err != nil {
-				errChan <- err
-				continue
-			}
+			var blockTime time.Time
+			if header := blockInfo[ethLog.BlockNumber]; header != nil {
+				blockTime = time.Unix(header.Time.Int64(), 0)
+			} else {
+				block := big.NewInt(int64(ethLog.BlockNumber))
+				if block.Cmp(blockCursor) == -1 {
+					fmt.Printf("Found old event skipping")
+					continue
+				}
 
-			blockTime := time.Unix(header.Time.Int64(), 0)
+				header, err := client.HeaderByNumber(context.Background(), block)
+				if err != nil {
+					errChan <- errors.Wrap(err)
+					continue
+				}
+
+				blockTime = time.Unix(header.Time.Int64(), 0)
+				blockInfo[ethLog.BlockNumber] = header
+			}
 
 			// Look for a topic that we're interested in
 			for _, topicHash := range ethLog.Topics {
@@ -209,6 +239,9 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 					EventType:   eventName,
 					CreatedAt:   &blockTime,
 					BlockNumber: ethLog.BlockNumber,
+					TxHash:      ethLog.TxHash.Hex(),
+					TxIndex:     ethLog.TxIndex,
+					LogIndex:    ethLog.Index,
 					Data:        ethLog.Data,
 					Topics:      ethLog.Topics,
 				}
@@ -217,7 +250,7 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 			}
 		}
 
-		err = models.SetKey(lastSyncedKey, latestBlock.Number.String())
+		err = models.SetKey(lastSyncedKey, toBlock.String())
 		if err != nil {
 			errChan <- errors.Wrap(err)
 		}

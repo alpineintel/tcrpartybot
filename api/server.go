@@ -375,6 +375,34 @@ func (server *Server) voteBalance(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(fmt.Sprintf("Voting balance: %d", humanBalance)))
 }
 
+func (server *Server) walletBalance(w http.ResponseWriter, r *http.Request) {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(r.Body)
+	account, err := getAccountFromRequestID(buf.String())
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	if !account.MultisigAddress.Valid {
+		w.WriteHeader(400)
+		w.Write([]byte("Account does not have a multisig address"))
+		return
+	}
+
+	balance, err := contracts.GetTokenBalance(account.MultisigAddress.String)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte("Error: " + err.Error()))
+		return
+	}
+
+	humanBalance := contracts.GetHumanTokenAmount(balance).Int64()
+	w.WriteHeader(200)
+	w.Write([]byte(fmt.Sprintf("Wallet balance: %d", humanBalance)))
+}
+
 func (server *Server) voteWithdraw(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(r.Body)
@@ -599,6 +627,7 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	http.HandleFunc("/admin/authenticate-party", requireAuth(server.authenticateParty))
 	http.HandleFunc("/admin/redeploy-wallet", requireAuth(server.redeployWallet))
 	http.HandleFunc("/admin/activate", requireAuth(server.activate))
+	http.HandleFunc("/admin/wallet-balance", requireAuth(server.walletBalance))
 	http.HandleFunc("/admin/vote-balance", requireAuth(server.voteBalance))
 	http.HandleFunc("/admin/vote-deposit", requireAuth(server.voteDeposit))
 	http.HandleFunc("/admin/vote-withdraw", requireAuth(server.voteWithdraw))

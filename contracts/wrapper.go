@@ -139,7 +139,7 @@ func MintTokens(address string, amount *big.Int) (*types.Transaction, error) {
 
 	log.Printf("Minting %d tokens to %s", GetHumanTokenAmount(amount).Int64(), address)
 	return ensureTransactionSubmission(func() (*types.Transaction, error) {
-		txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), 500000)
+		txOpts, err := setupTransactionOpts(os.Getenv("MASTER_PRIVATE_KEY"), gasLimit)
 		if err != nil {
 			return nil, err
 		}

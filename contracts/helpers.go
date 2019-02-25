@@ -153,7 +153,7 @@ func ensureTransactionSubmission(submit txSubmitter) (*types.Transaction, error)
 	for {
 		// If we've tried 10 times it's probably time to give up
 		if timeout == 15 {
-			return nil, fmt.Errorf("transaction %s timed out with error: %s", tx.Hash(), err.Error())
+			return nil, fmt.Errorf("transaction timed out with error: %s", err.Error())
 		}
 
 		// Make another attempt
@@ -162,12 +162,12 @@ func ensureTransactionSubmission(submit txSubmitter) (*types.Transaction, error)
 
 		if err != nil && err.Error() == core.ErrReplaceUnderpriced.Error() {
 			// Underpriced transaction, let's try again in a bit
-			log.Printf("%s underpriced tx, trying again in %ds", tx.Hash(), timeout)
+			log.Printf("underpriced tx, trying again in %ds", timeout)
 			time.Sleep(timeout * time.Second)
 			continue
 		} else if err != nil && err.Error() == core.ErrNonceTooLow.Error() {
 			// Nonce is low, let's try again in a bit
-			log.Printf("%s nonce too low, trying again in %ds", tx.Hash(), timeout)
+			log.Printf("nonce too low, trying again in %ds", timeout)
 			time.Sleep(timeout * time.Second)
 			continue
 		} else if err != nil {

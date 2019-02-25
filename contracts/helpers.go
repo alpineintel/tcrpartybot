@@ -71,7 +71,7 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 	}
 
 	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-	nonce, err := client.PendingNonceAt(context.Background(), fromAddress)
+	nonce, err := client.NonceAt(context.Background(), fromAddress, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +98,8 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.GasLimit = uint64(gasLimit)
 	auth.GasPrice = gasPrice
+
+	log.Printf("Nonce is %d", auth.Nonce)
 
 	return auth, nil
 }

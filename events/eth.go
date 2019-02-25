@@ -481,7 +481,7 @@ func processChallengeFailed(ethEvent *ETHEvent) error {
 	}
 
 	// Claim rewards on behalf of voters
-	if err := rewardVoters(event.ChallengeID, false); err != nil {
+	if err := rewardVoters(event.ChallengeID, true); err != nil {
 		return err
 	}
 

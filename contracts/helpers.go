@@ -138,8 +138,7 @@ func ensureTransactionSubmission(submit txSubmitter) (*types.Transaction, error)
 	for {
 		// If we've tried 10 times it's probably time to give up
 		if timeout == 15 {
-			log.Printf("Transaction %s failed: %s", tx.Hash(), err.Error())
-			return nil, err
+			return nil, fmt.Errorf("transaction %s timed out with error: %s", tx.Hash(), err.Error())
 		}
 
 		// Make another attempt

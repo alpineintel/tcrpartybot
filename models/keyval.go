@@ -5,10 +5,11 @@ import (
 )
 
 const (
-	LatestSyncedBlockKey   = "LatestSyncedBlock"
-	LatestLoggedBlockKey   = "LatestLoggedBlock"
-	LatestSyncedTweetKey   = "LatestSyncedTweet"
-	TwitterRequestTokenKey = "TwitterRequestToken"
+	LatestRegistrySyncedEventKey = "LatestRegistrySyncedEvent"
+	LatestSyncedBlockKey         = "LatestSyncedBlock"
+	LatestLoggedBlockKey         = "LatestLoggedBlock"
+	LatestSyncedTweetKey         = "LatestSyncedTweet"
+	TwitterRequestTokenKey       = "TwitterRequestToken"
 )
 
 type keyValueRow struct {

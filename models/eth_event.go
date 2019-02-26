@@ -76,7 +76,6 @@ func FindETHEventByID(id int64) (*ETHEvent, error) {
 // function again to retrieve the next batch of results.
 func FindETHEventsSinceID(id int64) (events []*ETHEvent, moreAvailable bool, err error) {
 	db := GetDBSession()
-
 	err = db.Select(&events, "SELECT * FROM eth_events WHERE id > $1 ORDER BY id ASC LIMIT 500", id)
 
 	if err != nil {

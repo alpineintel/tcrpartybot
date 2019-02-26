@@ -26,6 +26,44 @@ type votingRightsWithdrawnEvent struct {
 	NumTokens *big.Int `json:"NumTokens"`
 }
 
+type applicationEvent struct {
+	Applicant   string   `json:"Applicant"`
+	Data        string   `json:"Data"`
+	ListingHash [32]byte `json:"ListingHash"`
+	Deposit     *big.Int `json:"Deposit"`
+	AppEndDate  int64    `json:"AppEndDate"`
+}
+
+type applicationWhitelistedEvent struct {
+	ListingHash [32]byte `json:"ListingHash"`
+}
+
+type listingRemovedEvent struct {
+	ListingHash [32]byte `json:"ListingHash"`
+}
+
+type applicationRemovedEvent struct {
+	ListingHash [32]byte `json:"ListingHash"`
+}
+
+type challengeEvent struct {
+	ListingHash   [32]byte `json:"ListingHash"`
+	ChallengeID   int64    `json:"ChallengeID"`
+	Challenger    string   `json:"Challenger"`
+	CommitEndDate int64    `json:"CommitEndDate"`
+	RevealEndDate int64    `json:"RevealEndDate"`
+}
+
+type challengeSucceededEvent struct {
+	ChallengeID int64    `json:"ChallengeID"`
+	ListingHash [32]byte `json:"ListingHash"`
+}
+
+type challengeFailedEvent struct {
+	ChallengeID int64    `json:"ChallengeID"`
+	ListingHash [32]byte `json:"ListingHash"`
+}
+
 func negate(v *big.Int) *big.Int {
 	negOne := big.NewInt(-1)
 	return v.Mul(v, negOne)
@@ -151,6 +189,62 @@ func UpdateBalances(errChan chan<- error) {
 
 func unmarshalTransferEvent(json types.JSONText) (*transferEvent, error) {
 	data := &transferEvent{}
+	if err := json.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func unmarshalApplicationEvent(json types.JSONText) (*applicationEvent, error) {
+	data := &applicationEvent{}
+	if err := json.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func unmarshalApplicationWhitelistedEvent(json types.JSONText) (*applicationWhitelistedEvent, error) {
+	data := &applicationWhitelistedEvent{}
+	if err := json.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func unmarshalListingRemovedEvent(json types.JSONText) (*listingRemovedEvent, error) {
+	data := &listingRemovedEvent{}
+	if err := json.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func unmarshalApplicationRemovedEvent(json types.JSONText) (*applicationRemovedEvent, error) {
+	data := &applicationRemovedEvent{}
+	if err := json.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func unmarshalChallengeEvent(json types.JSONText) (*challengeEvent, error) {
+	data := &challengeEvent{}
+	if err := json.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func unmarshalChallengeSucceededEvent(json types.JSONText) (*challengeSucceededEvent, error) {
+	data := &challengeSucceededEvent{}
+	if err := json.Unmarshal(data); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func unmarshalChallengeFailedEvent(json types.JSONText) (*challengeFailedEvent, error) {
+	data := &challengeFailedEvent{}
 	if err := json.Unmarshal(data); err != nil {
 		return nil, err
 	}

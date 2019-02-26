@@ -1,0 +1,4 @@
+ALTER TABLE registry_challenges DROP CONSTRAINT registry_challenge_registry_listing;
+ALTER TABLE registry_challenges DROP CONSTRAINT registry_challenge_account;
+DROP TABLE registry_listings;
+DROP TABLE registry_challenges;

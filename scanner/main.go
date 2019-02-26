@@ -18,9 +18,11 @@ func main() {
 	ethEvents := make(chan *events.ETHEvent)
 	errChan := make(chan error)
 
-	go events.StartScannerListener(ethEvents, errChan)
 	go errors.LogErrors(errChan)
+
+	go events.StartScannerListener(ethEvents, errChan)
 	go events.UpdateBalances(errChan)
+	go events.GenerateAndWatchRegistry(errChan)
 
 	for event := range ethEvents {
 		var decoded interface{}

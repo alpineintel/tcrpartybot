@@ -5,8 +5,8 @@ import (
 	"log"
 	"strings"
 
-	"gitlab.com/alpinefresh/tcrpartybot/contracts"
 	"gitlab.com/alpinefresh/tcrpartybot/errors"
+	"gitlab.com/alpinefresh/tcrpartybot/models"
 )
 
 // SyncList will periodically update the Twitter list to ensure it is in sync
@@ -19,7 +19,7 @@ func SyncList() error {
 		return errors.Wrap(err)
 	}
 
-	whitelistedHandles, err := contracts.GetWhitelistedHandles()
+	whitelistedListings, err := models.FindWhitelistedRegistryListings()
 	if err != nil {
 		return errors.Wrap(err)
 	}
@@ -31,8 +31,8 @@ func SyncList() error {
 	}
 
 	tcrHandles := set.NewSet()
-	for _, handle := range whitelistedHandles {
-		tcrHandles.Add(strings.TrimSpace(strings.ToLower(handle)))
+	for _, listing := range whitelistedListings {
+		tcrHandles.Add(strings.TrimSpace(strings.ToLower(listing.TwitterHandle)))
 	}
 
 	toRemove := []string{}

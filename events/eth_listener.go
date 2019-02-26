@@ -191,6 +191,10 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 			syncing = true
 		}
 
+		if blockCursor.Cmp(toBlock) == 0 {
+			continue
+		}
+
 		// The filter is inclusive, therefore we should add 1 to the last seen block
 		query.FromBlock = blockCursor.Add(blockCursor, big.NewInt(1))
 		query.ToBlock = toBlock
@@ -205,6 +209,13 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 		// Create a cache for block header information, allowing us to share
 		// block timestamp data between multiple events within the same block
 		blockInfo := map[uint64]*types.Header{}
+
+		// Certain operations in this process are prone to fail (namely any
+		// call to the blockchain). Instead of firing off ETHEvents as we
+		// discover them, we batch them together and only fire them off if
+		// there were no errors while preparing the events.
+		events := []*ETHEvent{}
+		needsRetry := false
 		for _, ethLog := range logs {
 			// Get the block timestamp
 			var blockTime *time.Time
@@ -221,17 +232,13 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 				header, err := client.HeaderByNumber(context.Background(), block)
 				if err != nil {
 					errChan <- errors.Wrap(err)
+					needsRetry = true
+					break
 				}
 
-				if header != nil {
-					time := time.Unix(header.Time.Int64(), 0)
-					blockTime = &time
-					blockInfo[ethLog.BlockNumber] = header
-				} else {
-					// If INFURA's API fails us let's just mark the block time
-					// as nil and be on our merry way
-					blockTime = nil
-				}
+				time := time.Unix(header.Time.Int64(), 0)
+				blockTime = &time
+				blockInfo[ethLog.BlockNumber] = header
 			}
 
 			// Look for a topic that we're interested in
@@ -252,9 +259,18 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 					Data:        ethLog.Data,
 					Topics:      ethLog.Topics,
 				}
-
-				ethEvents <- event
+				events = append(events, event)
 			}
+		}
+
+		if needsRetry {
+			log.Println("Synced events were marked for retry due to error (see above in logs)")
+			continue
+		}
+
+		// Send 'em out
+		for _, event := range events {
+			ethEvents <- event
 		}
 
 		err = models.SetKey(lastSyncedKey, toBlock.String())

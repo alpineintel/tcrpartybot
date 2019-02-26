@@ -99,8 +99,6 @@ func setupTransactionOpts(privateKeyHex string, gasLimit int64) (*bind.TransactO
 	auth.GasLimit = uint64(gasLimit)
 	auth.GasPrice = gasPrice
 
-	log.Printf("Nonce is %d", auth.Nonce)
-
 	return auth, nil
 }
 
@@ -153,8 +151,8 @@ func ensureTransactionSubmission(submit txSubmitter) (*types.Transaction, error)
 	var err error
 	var timeout time.Duration = 5
 	for {
-		// If we've tried 10 times it's probably time to give up
-		if timeout == 15 {
+		// If we've tried this many times it's probably time to give up
+		if timeout == 20 {
 			return nil, fmt.Errorf("transaction timed out with error: %s", err.Error())
 		}
 

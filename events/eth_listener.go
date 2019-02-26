@@ -207,9 +207,10 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 		blockInfo := map[uint64]*types.Header{}
 		for _, ethLog := range logs {
 			// Get the block timestamp
-			var blockTime time.Time
+			var blockTime *time.Time
 			if header := blockInfo[ethLog.BlockNumber]; header != nil {
-				blockTime = time.Unix(header.Time.Int64(), 0)
+				time := time.Unix(header.Time.Int64(), 0)
+				blockTime = &time
 			} else {
 				block := big.NewInt(int64(ethLog.BlockNumber))
 				if block.Cmp(blockCursor) == -1 {
@@ -220,11 +221,17 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 				header, err := client.HeaderByNumber(context.Background(), block)
 				if err != nil {
 					errChan <- errors.Wrap(err)
-					continue
 				}
 
-				blockTime = time.Unix(header.Time.Int64(), 0)
-				blockInfo[ethLog.BlockNumber] = header
+				if header != nil {
+					time := time.Unix(header.Time.Int64(), 0)
+					blockTime = &time
+					blockInfo[ethLog.BlockNumber] = header
+				} else {
+					// If INFURA's API fails us let's just mark the block time
+					// as nil and be on our merry way
+					blockTime = nil
+				}
 			}
 
 			// Look for a topic that we're interested in
@@ -237,7 +244,7 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 				// We've found one! Let's submit it to our event channel
 				event := &ETHEvent{
 					EventType:   eventName,
-					CreatedAt:   &blockTime,
+					CreatedAt:   blockTime,
 					BlockNumber: ethLog.BlockNumber,
 					TxHash:      ethLog.TxHash.Hex(),
 					TxIndex:     ethLog.TxIndex,

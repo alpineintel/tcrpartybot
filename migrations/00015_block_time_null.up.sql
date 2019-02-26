@@ -1,0 +1,1 @@
+ALTER TABLE eth_events ALTER COLUMN created_at DROP NOT NULL;

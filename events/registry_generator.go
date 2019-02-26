@@ -3,7 +3,6 @@ package events
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 

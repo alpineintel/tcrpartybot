@@ -191,6 +191,10 @@ func ETHListener(ethEvents chan<- *ETHEvent, errChan chan<- error, generateContr
 			syncing = true
 		}
 
+		if blockCursor.Cmp(toBlock) == 0 {
+			continue
+		}
+
 		// The filter is inclusive, therefore we should add 1 to the last seen block
 		query.FromBlock = blockCursor.Add(blockCursor, big.NewInt(1))
 		query.ToBlock = toBlock

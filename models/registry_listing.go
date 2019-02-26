@@ -100,7 +100,6 @@ func FindChallengedRegistryListings() ([]*RegistryListingWithChallenge, error) {
 		INNER JOIN registry_challenges ON
 			registry_challenges.listing_id = registry_listings.id
 		WHERE
-			registry_listings.whitelisted_at IS NULL AND
 			registry_listings.removed_at IS NULL AND
 			registry_challenges.succeeded_at IS NULL AND
 			registry_challenges.failed_at IS NULL

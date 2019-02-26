@@ -614,6 +614,37 @@ func (server *Server) activate(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Ok"))
 }
 
+func renderServerError(err error, w http.ResponseWriter) {
+	w.WriteHeader(500)
+	w.Write([]byte(fmt.Sprintf(`{"error": "%s"}`, err.Error())))
+}
+
+func (server *Server) syncList(w http.ResponseWriter, r *http.Request) {
+	if err := twitter.SyncList(); err != nil {
+		renderServerError(err, w)
+		return
+	}
+
+	w.Write([]byte("Ok"))
+}
+
+func (server *Server) showList(w http.ResponseWriter, r *http.Request) {
+	listings, err := models.FindWhitelistedRegistryListings()
+	if err != nil {
+		renderServerError(err, w)
+		return
+	}
+
+	jsonText, err := json.Marshal(listings)
+	if err != nil {
+		renderServerError(err, w)
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write(jsonText)
+}
+
 // StartServer spins up a webserver for the API
 func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *Server {
 	server := &Server{
@@ -622,6 +653,8 @@ func StartServer(eventsChan chan<- *events.TwitterEvent, errChan chan<- error) *
 	}
 
 	http.HandleFunc("/webhooks/twitter", server.handleTwitterWebhook)
+	http.HandleFunc("/api/list", server.showList)
+	http.HandleFunc("/admin/sync-list", requireAuth(server.syncList))
 	http.HandleFunc("/admin/create-webhook", requireAuth(server.createWebhook))
 	http.HandleFunc("/admin/authenticate-vip", requireAuth(server.authenticateVIP))
 	http.HandleFunc("/admin/authenticate-party", requireAuth(server.authenticateParty))

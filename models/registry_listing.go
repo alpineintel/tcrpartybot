@@ -20,6 +20,7 @@ type RegistryListing struct {
 	RemovedAt            *time.Time `db:"removed_at"`
 }
 
+// FindLatestRegistryListingByHash finds a registry listing by its listing hash
 func FindLatestRegistryListingByHash(listingHash [32]byte) (*RegistryListing, error) {
 	db := GetDBSession()
 
@@ -40,6 +41,17 @@ func FindLatestRegistryListingByHash(listingHash [32]byte) (*RegistryListing, er
 	}
 
 	return &listing, nil
+}
+
+// FindWhitelistedRegistryListings returns a slice of all currently whitelisted
+// listings
+func FindWhitelistedRegistryListings() ([]*RegistryListing, error) {
+	db := GetDBSession()
+
+	listings := []*RegistryListing{}
+	err := db.Select(&listings, "SELECT * FROM registry_listings WHERE whitelisted_at IS NOT NULL and removed_at IS NULL")
+
+	return listings, err
 }
 
 // Create inserts the registry challenge into the database

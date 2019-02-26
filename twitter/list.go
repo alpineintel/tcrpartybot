@@ -1,6 +1,7 @@
 package twitter
 
 import (
+	"fmt"
 	set "github.com/deckarep/golang-set"
 	"log"
 	"strings"
@@ -13,6 +14,8 @@ import (
 // with our TCR
 func SyncList() error {
 	log.Println("Syncing Twitter list...")
+	toLog := ""
+
 	// Fetch the current status of the TCR and Twitter list
 	members, err := GetList()
 	if err != nil {
@@ -26,27 +29,36 @@ func SyncList() error {
 
 	// Find any differences
 	listHandles := set.NewSet()
+	toLog += "\nList sync summary:\n\tCurrent members: "
 	for _, member := range members.Users {
-		listHandles.Add(strings.TrimSpace(strings.ToLower(member.ScreenName)))
+		handle := strings.TrimSpace(strings.ToLower(member.ScreenName))
+		listHandles.Add(handle)
+		toLog += fmt.Sprintf("%s,", handle)
 	}
 
 	tcrHandles := set.NewSet()
+	toLog += "\n\tTCR Members: "
 	for _, listing := range whitelistedListings {
-		tcrHandles.Add(strings.TrimSpace(strings.ToLower(listing.TwitterHandle)))
+		handle := strings.TrimSpace(strings.ToLower(listing.TwitterHandle))
+		tcrHandles.Add(handle)
+		toLog += fmt.Sprintf("%s,", handle)
 	}
 
+	toLog += "\n\tTo remove: "
 	toRemove := []string{}
 	for handle := range listHandles.Difference(tcrHandles).Iterator().C {
 		toRemove = append(toRemove, handle.(string))
+		toLog += fmt.Sprintf("%s,", handle.(string))
 	}
 
+	toLog += "\n\tTo add: "
 	toAdd := []string{}
 	for handle := range tcrHandles.Difference(listHandles).Iterator().C {
 		toAdd = append(toAdd, handle.(string))
+		toLog += fmt.Sprintf("%s,", handle.(string))
 	}
 
 	if len(toAdd) > 0 {
-		log.Printf("\tAdding: %s", strings.Join(toAdd, ","))
 		err = AddHandlesToList(toAdd)
 		if err != nil {
 			return errors.Wrap(err)
@@ -54,16 +66,13 @@ func SyncList() error {
 	}
 
 	if len(toRemove) > 0 {
-		log.Printf("\tRemoving: %s", strings.Join(toRemove, ","))
 		err = RemoveHandlesToList(toRemove)
 		if err != nil {
 			return errors.Wrap(err)
 		}
 	}
 
-	if len(toAdd)+len(toRemove) == 0 {
-		log.Println("\tNothing to do")
-	}
+	log.Println(toLog)
 
 	return nil
 }

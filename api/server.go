@@ -628,14 +628,36 @@ func (server *Server) syncList(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Ok"))
 }
 
+type listShowResult struct {
+	Applications []*models.RegistryListing              `json:"applications"`
+	Challenges   []*models.RegistryListingWithChallenge `json:"challenges"`
+	Whitelisted  []*models.RegistryListing              `json:"whitelisted"`
+}
+
 func (server *Server) showList(w http.ResponseWriter, r *http.Request) {
-	listings, err := models.FindWhitelistedRegistryListings()
+	applications, err := models.FindUnchallengedApplications()
 	if err != nil {
 		renderServerError(err, w)
 		return
 	}
 
-	jsonText, err := json.Marshal(listings)
+	whitelisted, err := models.FindUnchallengedWhitelistedListings()
+	if err != nil {
+		renderServerError(err, w)
+		return
+	}
+
+	challenges, err := models.FindChallengedRegistryListings()
+	if err != nil {
+		renderServerError(err, w)
+		return
+	}
+
+	jsonText, err := json.Marshal(listShowResult{
+		Applications: applications,
+		Challenges:   challenges,
+		Whitelisted:  whitelisted,
+	})
 	if err != nil {
 		renderServerError(err, w)
 		return

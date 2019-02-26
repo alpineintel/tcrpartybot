@@ -43,8 +43,6 @@ func generateRegistry() error {
 		return nil
 	}
 
-	log.Printf("Updating registry since %d", intID)
-	// @TODO Start a transaction
 	for _, event := range events {
 		switch event.EventType {
 		case ETHEventNewTCRApplication:

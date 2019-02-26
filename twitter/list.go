@@ -47,18 +47,18 @@ func SyncList() error {
 
 	if len(toAdd) > 0 {
 		log.Printf("\tAdding: %s", strings.Join(toAdd, ","))
-		//err = AddHandlesToList(toAdd)
-		//if err != nil {
-		//return errors.Wrap(err)
-		//}
+		err = AddHandlesToList(toAdd)
+		if err != nil {
+			return errors.Wrap(err)
+		}
 	}
 
 	if len(toRemove) > 0 {
 		log.Printf("\tRemoving: %s", strings.Join(toRemove, ","))
-		//err = RemoveHandlesToList(toRemove)
-		//if err != nil {
-		//return errors.Wrap(err)
-		//}
+		err = RemoveHandlesToList(toRemove)
+		if err != nil {
+			return errors.Wrap(err)
+		}
 	}
 
 	if len(toAdd)+len(toRemove) == 0 {

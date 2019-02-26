@@ -242,6 +242,7 @@ func GetList() (*twitter.Members, error) {
 	members, _, err := client.Lists.Members(&twitter.ListsMembersParams{
 		Slug:            os.Getenv("TWITTER_LIST_SLUG"),
 		OwnerScreenName: os.Getenv("PARTY_BOT_HANDLE"),
+		Count:           200,
 	})
 	if err != nil {
 		return nil, err

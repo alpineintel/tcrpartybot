@@ -26,6 +26,10 @@ import (
 func GetListingHash(twitterHandle string) [32]byte {
 	if twitterHandle == "obstropolos" {
 		twitterHandle = "Obstropolos"
+	} else if twitterHandle == "patberarducci" {
+		twitterHandle = "\npatberarducci"
+	} else if twitterHandle == "nmattcorva" {
+		twitterHandle = "\nnmattcorva"
 	}
 
 	listingHash := sha256.Sum256([]byte(twitterHandle))

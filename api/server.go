@@ -635,6 +635,8 @@ type listShowResult struct {
 }
 
 func (server *Server) showList(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	applications, err := models.FindUnchallengedApplications()
 	if err != nil {
 		renderServerError(err, w)

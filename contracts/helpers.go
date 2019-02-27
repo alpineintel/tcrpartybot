@@ -28,7 +28,7 @@ func GetListingHash(twitterHandle string) [32]byte {
 		twitterHandle = "Obstropolos"
 	} else if twitterHandle == "patberarducci" {
 		twitterHandle = "\npatberarducci"
-	} else if twitterHandle == "nmattcorva" {
+	} else if twitterHandle == "mattcorva" {
 		twitterHandle = "\nnmattcorva"
 	}
 

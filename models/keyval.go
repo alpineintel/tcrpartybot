@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	LatestListSyncedEventKey     = "LatestListSyncedEvent"
 	LatestRegistrySyncedEventKey = "LatestRegistrySyncedEvent"
 	LatestSyncedBlockKey         = "LatestSyncedBlock"
 	LatestLoggedBlockKey         = "LatestLoggedBlock"

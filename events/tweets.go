@@ -68,10 +68,10 @@ func pollList(errChan chan<- error) {
 }
 
 // ListenAndRetweet listens for all tweets by users who are on the TCR and
-// retweets onto @TCRParty's timeline. It will also listen for updates on the
-// ethEvents channel and reset the twitter filter upon hearing of an
+// retweets onto @TCRParty's timeline. It will also poll for updates on the
+// eth_events table and reset the twitter filter upon hearing of an
 // addition/removal of a listing on the TCR
-func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
+func ListenAndRetweet(errChan chan<- error) {
 	// Sync up the list just in case anything has happened since we've last
 	// booted the bot
 	twitter.SyncList()
@@ -82,10 +82,38 @@ func ListenAndRetweet(ethEvents <-chan *ETHEvent, errChan chan<- error) {
 	// Listen for TCR changes that require us to reset the Twitter stream with
 	// a new filter
 	for {
-		event := <-ethEvents
-		name := event.EventType
-		if name == ETHEventTCRApplicationWhitelisted || name == ETHEventTCRListingRemoved {
+		time.Sleep(10 * time.Second)
+
+		// Fetch the last synced event ID
+		latestEventIDStr, err := models.GetKey(models.LatestListSyncedEventKey)
+		if err != nil {
+			errChan <- errors.Wrap(err)
+			continue
+		}
+
+		latestEventID := int64(0)
+		if latestEventIDStr != "" {
+			intID, err := strconv.ParseInt(latestEventIDStr, 10, 64)
+			if err != nil {
+				errChan <- errors.Wrap(err)
+				continue
+			}
+
+			latestEventID = intID
+		}
+
+		needsUpdate, newestID, err := models.TCRHasUpdatedSinceEventID(latestEventID)
+		if err != nil {
+			errChan <- errors.Wrap(err)
+			continue
+		} else if needsUpdate {
 			twitter.SyncList()
+		}
+
+		// Set the last synced event ID
+		if err := models.SetKey(models.LatestListSyncedEventKey, strconv.FormatInt(newestID, 10)); err != nil {
+			errChan <- errors.Wrap(err)
+			continue
 		}
 	}
 }

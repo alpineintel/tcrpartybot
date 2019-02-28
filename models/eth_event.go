@@ -84,3 +84,32 @@ func FindETHEventsSinceID(id int64) (events []*ETHEvent, moreAvailable bool, err
 
 	return events, len(events) == 500, nil
 }
+
+// TCRHasUpdatedSinceEventID returns true or false based on whether or not
+// there are eth events which have updated the state of the tcr since a given
+// event ID
+func TCRHasUpdatedSinceEventID(id int64) (needsUpdate bool, latestID int64, err error) {
+	db := GetDBSession()
+
+	var count int
+	err = db.Get(&count, `
+		SELECT COUNT(*)
+		FROM eth_events
+		WHERE
+			id > $1 AND
+			(event_type = '_ApplicationWhitelisted' OR
+			 event_type = '_ListingRemoved')
+		`, id)
+
+	if err != nil {
+		return false, 0, err
+	}
+
+	latestEvent := &ETHEvent{}
+	err = db.Get(latestEvent, "SELECT id FROM eth_events ORDER BY id DESC LIMIT 1")
+	if err != nil {
+		return false, 0, err
+	}
+
+	return count > 0, latestEvent.ID, nil
+}

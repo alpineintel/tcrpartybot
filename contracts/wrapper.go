@@ -284,6 +284,12 @@ func CreateChallenge(multisigAddress string, amount *big.Int, twitterHandle stri
 	}
 
 	tx, err := submitTransaction(multisigAddress, proxiedTX)
+
+	_, err = AwaitTransactionConfirmation(tx.Hash())
+	if err != nil {
+		return nil, err
+	}
+
 	return tx, err
 }
 

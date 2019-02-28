@@ -284,6 +284,12 @@ func CreateChallenge(multisigAddress string, amount *big.Int, twitterHandle stri
 	}
 
 	tx, err := submitTransaction(multisigAddress, proxiedTX)
+
+	_, err = AwaitTransactionConfirmation(tx.Hash())
+	if err != nil {
+		return nil, err
+	}
+
 	return tx, err
 }
 
@@ -963,4 +969,46 @@ func PLCRWithdraw(multisigAddress string, amount *big.Int) (*types.Transaction, 
 	}
 
 	return submitTransaction(multisigAddress, proxiedTX)
+}
+
+// PLCRLockedTokens returns the number of tokens that are currently locked up
+// for voting.
+func PLCRLockedTokens(multisigAddress string) (*big.Int, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	plcrAddress, err := GetPLCRContractAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	plcr, err := NewPLCRVoting(plcrAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return plcr.GetLockedTokens(nil, common.HexToAddress(multisigAddress))
+}
+
+// PLCRLockedChallengeID returns the ID of the challenge which has the most
+// amount of tokens locked up
+func PLCRLockedChallengeID(multisigAddress string) (*big.Int, error) {
+	client, err := GetClientSession()
+	if err != nil {
+		return nil, err
+	}
+
+	plcrAddress, err := GetPLCRContractAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	plcr, err := NewPLCRVoting(plcrAddress, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return plcr.GetLastNode(nil, common.HexToAddress(multisigAddress))
 }

@@ -3,6 +3,7 @@ package events
 import (
 	"errors"
 	"fmt"
+	"github.com/dustin/go-humanize"
 	"log"
 	"math/big"
 	"strconv"
@@ -32,6 +33,7 @@ const (
 	plcrWithdrawInsufficientFunds   = "Whoops, you only have %d tokens locked up."
 	plcrWithdrawBeginMsg            = "I've submitted your request to withdraw. Hang tight, I'll let you know when everything clears."
 	plcrWithdrawSuccessMsg          = "Your tokens have been withdrawn successfully!\n\nYou now have %d tokens locked up to vote and %d tokens in your wallet.\n\nTX hash: %s"
+	plcrLockedTokensMsg             = "Whoops! You currently have %d tokens locked up in existing challenges. These tokens cannot be withdrawn until challenge for %s's listing has completed (%s)."
 	invalidNumberMsg                = "That doesn't look like a valid number to deposit... Get outta here."
 )
 
@@ -300,6 +302,33 @@ func handleVoteWithdraw(account *models.Account, argv []string, sendDM func(stri
 
 	if balance.Cmp(toWithdraw) == -1 {
 		msg := fmt.Sprintf(plcrWithdrawInsufficientFunds, contracts.GetHumanTokenAmount(balance).Int64())
+		sendDM(msg)
+		return nil
+	}
+
+	// Are their tokens locked up in challenges?
+	lockedTokens, err := contracts.PLCRLockedTokens(account.MultisigAddress.String)
+	if err != nil {
+		return err
+	}
+
+	if lockedTokens.Cmp(toWithdraw) == 1 || lockedTokens.Cmp(toWithdraw) == 0 {
+		challengeID, err := contracts.PLCRLockedChallengeID(account.MultisigAddress.String)
+		if err != nil {
+			return err
+		}
+
+		// Get the challenge
+		challenge, err := models.FindRegistryChallengeByPollID(challengeID.Int64())
+		if err != nil {
+			return err
+		}
+
+		lockedTokenAmt := contracts.GetHumanTokenAmount(lockedTokens).Int64()
+		challengeHandle := challenge.Listing.TwitterHandle
+		resolveAt := humanize.Time(*challenge.RevealEndsAt)
+
+		msg := fmt.Sprintf(plcrLockedTokensMsg, lockedTokenAmt, challengeHandle, resolveAt)
 		sendDM(msg)
 		return nil
 	}

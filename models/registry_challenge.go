@@ -7,16 +7,17 @@ import (
 
 // RegistryChallenge represents a challenge on a RegistryListing
 type RegistryChallenge struct {
-	PollID              int64         `db:"poll_id" json:"poll_id"`
-	ListingHash         string        `db:"listing_hash" json:"-"`
-	ListingID           string        `db:"listing_id" json:"-"`
-	ChallengerAccountID sql.NullInt64 `db:"challenger_account_id" json:"-"`
-	ChallengerAddress   string        `db:"challenger_address" json:"-"`
-	CreatedAt           *time.Time    `db:"created_at" json:"created_at"`
-	CommitEndsAt        *time.Time    `db:"commit_ends_at" json:"commit_ends_at"`
-	RevealEndsAt        *time.Time    `db:"reveal_ends_at" json:"reveal_ends_at"`
-	SucceededAt         *time.Time    `db:"succeeded_at" json:"-"`
-	FailedAt            *time.Time    `db:"failed_at" json:"-"`
+	PollID              int64            `db:"poll_id" json:"poll_id"`
+	ListingHash         string           `db:"listing_hash" json:"-"`
+	ListingID           string           `db:"listing_id" json:"-"`
+	ChallengerAccountID sql.NullInt64    `db:"challenger_account_id" json:"-"`
+	ChallengerAddress   string           `db:"challenger_address" json:"-"`
+	CreatedAt           *time.Time       `db:"created_at" json:"created_at"`
+	CommitEndsAt        *time.Time       `db:"commit_ends_at" json:"commit_ends_at"`
+	RevealEndsAt        *time.Time       `db:"reveal_ends_at" json:"reveal_ends_at"`
+	SucceededAt         *time.Time       `db:"succeeded_at" json:"-"`
+	FailedAt            *time.Time       `db:"failed_at" json:"-"`
+	Listing             *RegistryListing `db:"registry_listing" json:"-"`
 }
 
 // FindRegistryChallengeByPollID finds a challenge given its poll ID (also
@@ -26,7 +27,13 @@ func FindRegistryChallengeByPollID(pollID int64) (*RegistryChallenge, error) {
 
 	challenge := RegistryChallenge{}
 	err := db.Get(&challenge, `
-		SELECT * FROM registry_challenges WHERE poll_id=$1
+		SELECT
+			registry_challenges.*,
+			registry_listings.twitter_handle AS "registry_listing.twitter_handle"
+		FROM registry_challenges
+		LEFT JOIN registry_listings ON
+			registry_listings.id = registry_challenges.listing_id
+		WHERE poll_id=$1
 	`, pollID)
 
 	if err != nil && err != sql.ErrNoRows {
@@ -83,6 +90,7 @@ func (challenge *RegistryChallenge) Create() error {
 	return err
 }
 
+// Save updates the registry challenge's row in the database
 func (challenge *RegistryChallenge) Save() error {
 	db := GetDBSession()
 

@@ -43,26 +43,15 @@ func main() {
 	twitterEventChan := make(chan *events.TwitterEvent)
 	go api.StartServer(twitterEventChan, errChan)
 	go events.ProcessTwitterEvents(twitterEventChan, errChan)
+	go events.ListenAndRetweet(errChan)
 
 	// Look for any existing applications/challenges that may need to be updated
 	go events.ScheduleUpdates(errChan)
 
 	// Start listening for relevant events on the blockchain
 	ethEvents := make(chan *events.ETHEvent)
-	twitterETHChan := make(chan *events.ETHEvent, 10)
-	processETHChan := make(chan *events.ETHEvent, 10)
-
-	go func() {
-		// Fan events out to each listner
-		for event := range ethEvents {
-			twitterETHChan <- event
-			processETHChan <- event
-		}
-	}()
-
 	go events.StartBotListener(ethEvents, errChan)
-	go events.ListenAndRetweet(twitterETHChan, errChan)
-	go events.ProcessETHEvents(processETHChan, errChan)
+	go events.ProcessETHEvents(ethEvents, errChan)
 
 	startRepl := flag.Bool("repl", false, "Starts the debug REPL")
 	flag.Parse()

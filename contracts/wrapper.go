@@ -816,6 +816,23 @@ func PLCRCommitVote(multisigAddress string, pollID *big.Int, amount *big.Int, vo
 		return 0, nil, err
 	}
 
+	client, err := GetClientSession()
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// Find the insert point in the DLL
+	plcrVoting, err := NewPLCRVoting(plcrAddress, client)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	voterAddress := common.HexToAddress(multisigAddress)
+	prevNode, err := plcrVoting.GetInsertPointForNumTokens(nil, voterAddress, amount, pollID)
+	if err != nil {
+		return 0, nil, err
+	}
+
 	// Generate a salt
 	salt := rand.Int63()
 
@@ -857,7 +874,7 @@ func PLCRCommitVote(multisigAddress string, pollID *big.Int, amount *big.Int, vo
 		pollID,
 		secretHash,
 		amount,
-		big.NewInt(0),
+		prevNode,
 	)
 	if err != nil {
 		return 0, nil, err
